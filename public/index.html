@@ -25,17 +25,44 @@
         }
         .container { max-width: 1400px; margin: 0 auto; }
         
+        /* Header with terminal button */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 16px;
+        }
         h1 { 
-            text-align: center; 
             font-size: 1.5rem; 
-            margin-bottom: 16px; 
             border: 2px solid var(--border); 
-            padding: 12px;
+            padding: 12px 40px;
             font-weight: normal;
             letter-spacing: 2px;
         }
+        .terminal-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg);
+            border: 2px solid var(--green);
+            color: var(--green);
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .terminal-btn:hover {
+            background: var(--green);
+            color: var(--bg);
+        }
         
-        /* Stats - fixed height */
+        /* Stats */
         .stats { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
@@ -54,14 +81,14 @@
         .stat-value { font-size: 1.4rem; font-weight: bold; }
         .stat-label { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; }
         
-        /* Grid layout */
+        /* Grid */
         .grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             gap: 12px;
         }
         
-        /* Cards - fixed dimensions */
+        /* Cards */
         .card { 
             border: 1px solid var(--border); 
             padding: 12px;
@@ -109,7 +136,7 @@
         .btn.danger { border-color: var(--red); color: var(--red); }
         .btn.danger:hover { background: var(--red); color: var(--bg); }
         
-        /* Output - fixed height with scroll */
+        /* Output */
         .output { 
             background: #050505; 
             border: 1px solid var(--dark-green); 
@@ -140,51 +167,105 @@
         .progress { height: 3px; background: #111; margin: 8px 0; flex-shrink: 0; }
         .progress-bar { height: 100%; background: var(--green); width: 0%; transition: width 0.2s; }
         
-        /* Status colors */
+        /* Status */
         .running { color: var(--yellow); }
         .success { color: var(--green); }
         .error { color: var(--red); }
         
-        /* Terminal card - spans full width */
-        .terminal-card { 
-            grid-column: 1 / -1;
-            min-height: 350px;
+        /* Modal overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-        .terminal { 
-            background: #050505; 
-            border: 1px solid var(--dark-green); 
-            flex-grow: 1;
-            display: flex; 
+        .modal-overlay.open { display: flex; }
+        
+        /* Modal */
+        .modal {
+            background: var(--bg);
+            border: 2px solid var(--green);
+            width: 100%;
+            max-width: 900px;
+            max-height: 80vh;
+            display: flex;
             flex-direction: column;
-            min-height: 280px;
+            animation: modalIn 0.15s ease-out;
         }
-        .terminal-output { 
-            flex: 1; 
-            padding: 10px; 
-            overflow-y: auto; 
-            font-size: 0.8rem; 
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--dark-green);
+        }
+        .modal-header h2 {
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+        .modal-close {
+            background: none;
+            border: 1px solid var(--green);
+            color: var(--green);
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover {
+            background: var(--green);
+            color: var(--bg);
+        }
+        
+        /* Terminal in modal */
+        .terminal {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+            max-height: 60vh;
+        }
+        .terminal-output {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 0.85rem;
             line-height: 1.5;
-            min-height: 200px;
+            background: #050505;
         }
-        .terminal-input-line { 
-            display: flex; 
+        .terminal-input-line {
+            display: flex;
             border-top: 1px solid var(--dark-green);
-            flex-shrink: 0;
+            background: #050505;
         }
-        .terminal-prompt { 
-            padding: 10px; 
-            color: var(--green); 
+        .terminal-prompt {
+            padding: 12px;
+            color: var(--green);
             white-space: nowrap;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
         }
-        .terminal-input { 
-            flex: 1; 
-            background: transparent; 
-            border: none; 
-            color: var(--green); 
-            padding: 10px 10px 10px 0; 
-            font-family: inherit; 
-            font-size: 0.8rem; 
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--green);
+            padding: 12px 12px 12px 0;
+            font-family: inherit;
+            font-size: 0.85rem;
             outline: none;
         }
         
@@ -195,7 +276,8 @@
         @media (max-width: 650px) {
             .grid { grid-template-columns: 1fr; }
             .stats { grid-template-columns: repeat(2, 1fr); height: auto; }
-            h1 { font-size: 1.2rem; }
+            h1 { font-size: 1rem; padding: 10px 20px; }
+            .terminal-btn { width: 36px; height: 36px; }
         }
         
         /* Scrollbar */
@@ -207,11 +289,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>[ STRESS TEST SUITE ]</h1>
+        <div class="header">
+            <h1>[ STRESS TEST ]</h1>
+            <button class="terminal-btn" onclick="openTerminal()" title="Open Terminal">⌘</button>
+        </div>
         
         <div class="stats">
             <div class="stat"><div class="stat-value" id="totalTests">0</div><div class="stat-label">TESTS</div></div>
-            <div class="stat"><div class="stat-value" id="avgTime">0ms</div><div class="stat-label">AVG TIME</div></div>
+            <div class="stat"><div class="stat-value" id="avgTime">0ms</div><div class="stat-label">AVG</div></div>
             <div class="stat"><div class="stat-value" id="successRate">0%</div><div class="stat-label">SUCCESS</div></div>
             <div class="stat"><div class="stat-value" id="activeTests">0</div><div class="stat-label">ACTIVE</div></div>
         </div>
@@ -287,15 +372,21 @@
                 </div>
                 <div class="output" id="system-output">&gt; Ready</div>
             </div>
+        </div>
+    </div>
 
-            <div class="card terminal-card">
+    <!-- Terminal Modal -->
+    <div class="modal-overlay" id="modal" onclick="closeOnOverlay(event)">
+        <div class="modal">
+            <div class="modal-header">
                 <h2>[ SHELL ]</h2>
-                <div class="terminal">
-                    <div class="terminal-output" id="term-output"></div>
-                    <div class="terminal-input-line">
-                        <span class="terminal-prompt" id="term-prompt">$</span>
-                        <input type="text" class="terminal-input" id="term-input" placeholder="Enter command..." autofocus>
-                    </div>
+                <button class="modal-close" onclick="closeTerminal()">✕</button>
+            </div>
+            <div class="terminal">
+                <div class="terminal-output" id="term-output"></div>
+                <div class="terminal-input-line">
+                    <span class="terminal-prompt" id="term-prompt">$</span>
+                    <input type="text" class="terminal-input" id="term-input" placeholder="Enter command...">
                 </div>
             </div>
         </div>
@@ -321,10 +412,12 @@
         }
 
         async function runTest(endpoint) {
-            const cats = {cpu:1, memory:1, network:1, dns:1, system:1, reverse:1, fs:1, load:1};
             let cat = 'load';
-            for (const c in cats) if (endpoint.includes(c)) { cat = c === 'dns' || c === 'reverse' ? (endpoint.includes('system') ? 'system' : 'network') : c; break; }
-            if (endpoint.includes('/api/system')) cat = 'system';
+            if (endpoint.includes('/api/cpu')) cat = 'cpu';
+            else if (endpoint.includes('/api/memory')) cat = 'memory';
+            else if (endpoint.includes('/api/network') || endpoint.includes('/api/reverse')) cat = 'network';
+            else if (endpoint.includes('/api/system')) cat = 'system';
+            else if (endpoint.includes('/api/fs')) cat = 'fs';
             
             const output = $(cat + '-output');
             output.innerHTML = '<span class="running">&gt; Running...</span>';
@@ -350,7 +443,7 @@
         async function stressTest(count) {
             const output = $('load-output');
             const progress = $('load-progress');
-            output.innerHTML = '<span class="running">&gt; Running ' + count + ' requests...</span>';
+            output.innerHTML = '<span class="running">&gt; Running ' + count + '...</span>';
             progress.style.width = '0%';
             
             const start = Date.now();
@@ -367,8 +460,33 @@
             ));
             
             const time = Date.now() - start;
-            output.innerHTML = '<span class="success">&gt; DONE</span>\nRequests: ' + count + '\nSuccess: ' + successes + '\nTime: ' + time + 'ms\nRPS: ' + Math.round(count / time * 1000);
+            output.innerHTML = '<span class="success">&gt; DONE</span>\n' + count + ' req | ' + successes + ' ok | ' + time + 'ms | ' + Math.round(count / time * 1000) + ' rps';
         }
+
+        // Terminal Modal
+        function openTerminal() {
+            $('modal').classList.add('open');
+            $('term-input').focus();
+        }
+        
+        function closeTerminal() {
+            $('modal').classList.remove('open');
+        }
+        
+        function closeOnOverlay(e) {
+            if (e.target === $('modal')) closeTerminal();
+        }
+        
+        // Keyboard shortcut
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === '`') {
+                e.preventDefault();
+                $('modal').classList.contains('open') ? closeTerminal() : openTerminal();
+            }
+            if (e.key === 'Escape' && $('modal').classList.contains('open')) {
+                closeTerminal();
+            }
+        });
 
         // Terminal
         const termOutput = $('term-output');
@@ -376,7 +494,7 @@
         const termPrompt = $('term-prompt');
 
         function updatePrompt() {
-            const short = cwd.length > 30 ? '...' + cwd.slice(-27) : cwd;
+            const short = cwd.length > 25 ? '...' + cwd.slice(-22) : cwd;
             termPrompt.textContent = short + ' $';
         }
 
@@ -436,7 +554,7 @@
         });
 
         updatePrompt();
-        appendOutput('Shell ready. Type commands and press Enter.', 'success');
+        appendOutput('Shell ready. Press Ctrl+` to toggle.', 'success');
     </script>
 </body>
 </html>
