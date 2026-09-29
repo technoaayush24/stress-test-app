@@ -5,270 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stress Test Suite</title>
     <style>
-        :root {
-            --green: #00ff00;
-            --dark-green: #003300;
-            --bg: #0a0a0a;
-            --border: #00ff00;
-            --red: #ff3333;
-            --yellow: #ffff00;
-        }
+        :root { --green: #0f0; --dark: #003300; --bg: #0a0a0a; --red: #f33; --yellow: #ff0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { font-size: 14px; }
-        body { 
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
-            background: var(--bg); 
-            color: var(--green); 
-            min-height: 100vh; 
-            padding: 16px;
-            line-height: 1.4;
-        }
+        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--green); min-height: 100vh; padding: 16px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            margin-bottom: 16px;
-        }
-        h1 { 
-            font-size: 1.5rem; 
-            border: 2px solid var(--border); 
-            padding: 12px 40px;
-            font-weight: normal;
-            letter-spacing: 2px;
-        }
-        .terminal-btn {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--bg);
-            border: 2px solid var(--green);
-            color: var(--green);
-            width: 44px;
-            height: 44px;
-            cursor: pointer;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s;
-        }
-        .terminal-btn:hover { background: var(--green); color: var(--bg); }
-        .terminal-btn.active { background: var(--green); color: var(--bg); }
-        
-        .stats { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 8px; 
-            margin-bottom: 16px;
-            height: 70px;
-        }
-        .stat { 
-            border: 1px solid var(--border); 
-            padding: 8px; 
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .stat-value { font-size: 1.4rem; font-weight: bold; }
-        .stat-label { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; }
-        
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 12px;
-        }
-        
-        .card { 
-            border: 1px solid var(--border); 
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            min-height: 220px;
-        }
-        .card h2 { 
-            font-size: 0.85rem; 
-            margin-bottom: 10px; 
-            padding-bottom: 6px; 
-            border-bottom: 1px solid var(--dark-green);
-            font-weight: normal;
-            flex-shrink: 0;
-        }
-        .card-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-            margin-bottom: 8px;
-            flex-shrink: 0;
-            min-height: 36px;
-        }
-        .card-input {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 8px;
-            flex-shrink: 0;
-        }
-        
-        .btn { 
-            background: var(--bg); 
-            border: 1px solid var(--border); 
-            color: var(--green); 
-            padding: 6px 12px; 
-            cursor: pointer; 
-            font-family: inherit; 
-            font-size: 0.75rem;
-            transition: all 0.1s ease;
-            white-space: nowrap;
-        }
+        .header { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 16px; }
+        h1 { font-size: 1.5rem; border: 2px solid var(--green); padding: 12px 40px; font-weight: normal; }
+        .terminal-btn { position: absolute; right: 0; background: var(--bg); border: 2px solid var(--green); color: var(--green); width: 44px; height: 44px; cursor: pointer; font-size: 1.2rem; }
+        .terminal-btn:hover, .terminal-btn.active { background: var(--green); color: var(--bg); }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+        .stat { border: 1px solid var(--green); padding: 12px; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.7rem; opacity: 0.6; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .card { border: 1px solid var(--green); padding: 12px; min-height: 220px; display: flex; flex-direction: column; }
+        .card h2 { font-size: 0.85rem; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--dark); font-weight: normal; }
+        .card-buttons { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+        .card-input { display: flex; gap: 4px; margin-bottom: 8px; }
+        .btn { background: var(--bg); border: 1px solid var(--green); color: var(--green); padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 0.75rem; }
         .btn:hover { background: var(--green); color: var(--bg); }
-        .btn:active { transform: scale(0.98); }
         .btn.danger { border-color: var(--red); color: var(--red); }
         .btn.danger:hover { background: var(--red); color: var(--bg); }
-        
-        .output { 
-            background: #050505; 
-            border: 1px solid var(--dark-green); 
-            padding: 8px; 
-            font-size: 0.7rem; 
-            height: 120px;
-            overflow-y: auto; 
-            white-space: pre-wrap; 
-            word-break: break-all;
-            flex-grow: 1;
-        }
-        
-        input[type="text"] { 
-            background: var(--bg); 
-            border: 1px solid var(--border); 
-            color: var(--green); 
-            padding: 6px 8px; 
-            font-family: inherit;
-            font-size: 0.75rem;
-            flex: 1;
-            min-width: 0;
-        }
-        input::placeholder { color: var(--dark-green); }
+        .output { background: #050505; border: 1px solid var(--dark); padding: 8px; font-size: 0.7rem; height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; flex: 1; }
+        input[type="text"] { background: var(--bg); border: 1px solid var(--green); color: var(--green); padding: 6px 8px; font-family: inherit; font-size: 0.75rem; flex: 1; min-width: 0; }
+        input::placeholder { color: var(--dark); }
         input:focus { outline: none; background: #001100; }
-        
-        .progress { height: 3px; background: #111; margin: 8px 0; flex-shrink: 0; }
+        .progress { height: 3px; background: #111; margin: 8px 0; }
         .progress-bar { height: 100%; background: var(--green); width: 0%; transition: width 0.2s; }
-        
         .running { color: var(--yellow); }
         .success { color: var(--green); }
         .error { color: var(--red); }
         
         /* Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
         .modal-overlay.open { display: flex; }
-        
-        .modal {
-            background: var(--bg);
-            border: 2px solid var(--green);
-            width: 100%;
-            max-width: 1000px;
-            height: 80vh;
-            display: flex;
-            flex-direction: column;
-            animation: modalIn 0.15s ease-out;
-        }
-        @keyframes modalIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--dark-green);
-            flex-shrink: 0;
-        }
+        .modal { background: var(--bg); border: 2px solid var(--green); width: 100%; max-width: 1000px; height: 80vh; display: flex; flex-direction: column; }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--dark); }
         .modal-header h2 { font-size: 0.9rem; font-weight: normal; }
-        .modal-status { font-size: 0.75rem; opacity: 0.7; }
-        .modal-status.connected { color: var(--green); }
-        .modal-status.disconnected { color: var(--red); }
-        .modal-close {
-            background: none;
-            border: 1px solid var(--green);
-            color: var(--green);
-            width: 28px;
-            height: 28px;
-            cursor: pointer;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .modal-close { background: none; border: 1px solid var(--green); color: var(--green); width: 28px; height: 28px; cursor: pointer; font-size: 1rem; }
         .modal-close:hover { background: var(--green); color: var(--bg); }
-        
-        /* Live Terminal */
-        .terminal {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .terminal-output {
-            flex: 1;
-            padding: 12px;
-            overflow-y: auto;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            background: #000;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .terminal-input-line {
-            display: flex;
-            border-top: 1px solid var(--dark-green);
-            background: #000;
-            flex-shrink: 0;
-        }
-        .terminal-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--green);
-            padding: 12px;
-            font-family: inherit;
-            font-size: 0.9rem;
-            outline: none;
-        }
+        .terminal { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .terminal-output { flex: 1; padding: 12px; overflow-y: auto; font-size: 0.85rem; line-height: 1.4; background: #000; white-space: pre-wrap; word-break: break-all; }
+        .terminal-input-line { display: flex; border-top: 1px solid var(--dark); background: #000; }
+        .terminal-input { flex: 1; background: transparent; border: none; color: var(--green); padding: 12px; font-family: inherit; font-size: 0.85rem; outline: none; }
         
         @media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 650px) {
-            .grid { grid-template-columns: 1fr; }
-            .stats { grid-template-columns: repeat(2, 1fr); height: auto; }
-            h1 { font-size: 1rem; padding: 10px 20px; }
-        }
-        
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        @media (max-width: 650px) { .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } }
+        ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: var(--dark-green); }
-        ::-webkit-scrollbar-thumb:hover { background: var(--green); }
+        ::-webkit-scrollbar-thumb { background: var(--dark); }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>[ STRESS TEST ]</h1>
-            <button class="terminal-btn" id="termBtn" onclick="toggleTerminal()" title="Open Terminal (Ctrl+`)">⌘</button>
+            <button class="terminal-btn" id="termBtn" onclick="toggleTerminal()" title="Terminal">⌘</button>
         </div>
         
         <div class="stats">
@@ -353,231 +145,149 @@
     </div>
 
     <!-- Terminal Modal -->
-    <div class="modal-overlay" id="modal" onclick="closeOnOverlay(event)">
+    <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeTerminal()">
         <div class="modal">
             <div class="modal-header">
-                <h2>[ LIVE SHELL ]</h2>
-                <span class="modal-status" id="termStatus">Disconnected</span>
+                <h2>[ SHELL ]</h2>
                 <button class="modal-close" onclick="closeTerminal()">✕</button>
             </div>
             <div class="terminal">
                 <div class="terminal-output" id="term-output"></div>
                 <div class="terminal-input-line">
-                    <input type="text" class="terminal-input" id="term-input" placeholder="Type command and press Enter...">
+                    <input type="text" class="terminal-input" id="term-input" placeholder="Type command...">
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const stats = { total: 0, success: 0, times: [], active: 0 };
         const $ = id => document.getElementById(id);
-        
-        // Terminal state
-        let sessionId = null;
-        let eventSource = null;
-        const cmdHistory = [];
-        let historyIndex = -1;
+        const stats = { total: 0, success: 0, times: [], active: 0 };
+        let shellId = null, pollInterval = null;
+        const history = []; let histIdx = -1;
 
-        function updateStats(time, success) {
-            stats.total++;
-            if (success) stats.success++;
-            stats.times.push(time);
-            if (stats.times.length > 100) stats.times.shift();
+        function updateStats(time, ok) {
+            stats.total++; if(ok) stats.success++;
+            stats.times.push(time); if(stats.times.length > 100) stats.times.shift();
             $('totalTests').textContent = stats.total;
-            $('avgTime').textContent = Math.round(stats.times.reduce((a,b) => a+b, 0) / stats.times.length) + 'ms';
-            $('successRate').textContent = Math.round(stats.success / stats.total * 100) + '%';
+            $('avgTime').textContent = Math.round(stats.times.reduce((a,b)=>a+b,0)/stats.times.length) + 'ms';
+            $('successRate').textContent = Math.round(stats.success/stats.total*100) + '%';
             $('activeTests').textContent = stats.active;
         }
 
         async function runTest(endpoint) {
-            let cat = 'load';
-            if (endpoint.includes('/api/cpu')) cat = 'cpu';
-            else if (endpoint.includes('/api/memory')) cat = 'memory';
-            else if (endpoint.includes('/api/network') || endpoint.includes('/api/reverse')) cat = 'network';
-            else if (endpoint.includes('/api/system')) cat = 'system';
-            else if (endpoint.includes('/api/fs')) cat = 'fs';
-            
-            const output = $(cat + '-output');
-            output.innerHTML = '<span class="running">&gt; Running...</span>';
-            stats.active++;
-            $('activeTests').textContent = stats.active;
-            
+            const cat = endpoint.includes('/cpu') ? 'cpu' : endpoint.includes('/memory') ? 'memory' : 
+                       endpoint.includes('/network') || endpoint.includes('/reverse') ? 'network' : 
+                       endpoint.includes('/system') ? 'system' : endpoint.includes('/fs') ? 'fs' : 'load';
+            const out = $(cat + '-output');
+            out.innerHTML = '<span class="running">&gt; Running...</span>';
+            stats.active++; $('activeTests').textContent = stats.active;
             const start = Date.now();
             try {
-                const res = await fetch(endpoint);
-                const data = await res.json();
-                const time = Date.now() - start;
-                output.innerHTML = '<span class="success">&gt; OK ' + time + 'ms</span>\n' + JSON.stringify(data, null, 2);
-                updateStats(time, true);
+                const r = await fetch(endpoint);
+                const d = await r.json();
+                const t = Date.now() - start;
+                out.innerHTML = '<span class="success">&gt; OK ' + t + 'ms</span>\n' + JSON.stringify(d, null, 2);
+                updateStats(t, true);
             } catch (e) {
-                const time = Date.now() - start;
-                output.innerHTML = '<span class="error">&gt; ERR ' + time + 'ms</span>\n' + e.message;
-                updateStats(time, false);
+                out.innerHTML = '<span class="error">&gt; ERR</span>\n' + e.message;
+                updateStats(Date.now() - start, false);
             }
-            stats.active--;
-            $('activeTests').textContent = stats.active;
+            stats.active--; $('activeTests').textContent = stats.active;
         }
 
-        async function stressTest(count) {
-            const output = $('load-output');
-            const progress = $('load-progress');
-            output.innerHTML = '<span class="running">&gt; Running ' + count + '...</span>';
-            progress.style.width = '0%';
-            
-            const start = Date.now();
-            let completed = 0, successes = 0;
-            
-            await Promise.all(Array.from({length: count}, () => 
-                fetch('/api/cpu/hash?iterations=10000')
-                    .then(() => successes++)
-                    .catch(() => {})
-                    .finally(() => {
-                        completed++;
-                        progress.style.width = (completed / count * 100) + '%';
-                    })
+        async function stressTest(n) {
+            const out = $('load-output'), prog = $('load-progress');
+            out.innerHTML = '<span class="running">&gt; Running...</span>'; prog.style.width = '0%';
+            const start = Date.now(); let done = 0, ok = 0;
+            await Promise.all(Array.from({length:n}, () => 
+                fetch('/api/cpu/hash?iterations=10000').then(()=>ok++).catch(()=>{}).finally(()=>{ done++; prog.style.width = (done/n*100)+'%'; })
             ));
-            
-            const time = Date.now() - start;
-            output.innerHTML = '<span class="success">&gt; DONE</span>\n' + count + ' req | ' + successes + ' ok | ' + time + 'ms | ' + Math.round(count / time * 1000) + ' rps';
+            const t = Date.now() - start;
+            out.innerHTML = '<span class="success">&gt; DONE</span>\n' + n + ' req | ' + ok + ' ok | ' + t + 'ms | ' + Math.round(n/t*1000) + ' rps';
         }
 
-        // ========== LIVE TERMINAL ==========
+        // Terminal
+        function toggleTerminal() { $('modal').classList.contains('open') ? closeTerminal() : openTerminal(); }
         
-        async function startTerminal() {
-            try {
-                const res = await fetch('/api/terminal/start');
-                const data = await res.json();
-                sessionId = data.sessionId;
-                
-                // Connect SSE stream
-                eventSource = new EventSource('/api/terminal/stream/' + sessionId);
-                
-                eventSource.onmessage = (e) => {
-                    const msg = JSON.parse(e.data);
-                    if (msg.type === 'stdout' || msg.type === 'stderr') {
-                        appendTerminal(msg.data, msg.type === 'stderr' ? 'error' : '');
-                    } else if (msg.type === 'exit') {
-                        appendTerminal('\n[Process exited]\n', 'error');
-                        setStatus('disconnected');
-                    }
-                };
-                
-                eventSource.onerror = () => {
-                    setStatus('disconnected');
-                };
-                
-                setStatus('connected');
-                appendTerminal('Shell connected. Type commands below.\n', 'success');
-                
-            } catch (e) {
-                appendTerminal('Failed to start shell: ' + e.message + '\n', 'error');
-                setStatus('disconnected');
-            }
-        }
-        
-        function stopTerminal() {
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-            }
-            if (sessionId) {
-                fetch('/api/terminal/' + sessionId, { method: 'DELETE' }).catch(() => {});
-                sessionId = null;
-            }
-            setStatus('disconnected');
-        }
-        
-        function setStatus(status) {
-            const el = $('termStatus');
-            el.textContent = status === 'connected' ? 'Connected' : 'Disconnected';
-            el.className = 'modal-status ' + status;
-            $('termBtn').classList.toggle('active', status === 'connected');
-        }
-        
-        function appendTerminal(text, cls = '') {
-            const output = $('term-output');
-            const span = document.createElement('span');
-            if (cls) span.className = cls;
-            span.textContent = text;
-            output.appendChild(span);
-            output.scrollTop = output.scrollHeight;
-        }
-        
-        async function sendInput(text) {
-            if (!sessionId) return;
-            try {
-                await fetch('/api/terminal/input/' + sessionId, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ input: text + '\n' })
-                });
-            } catch (e) {
-                appendTerminal('Send error: ' + e.message + '\n', 'error');
-            }
-        }
-        
-        function toggleTerminal() {
-            const modal = $('modal');
-            if (modal.classList.contains('open')) {
-                closeTerminal();
-            } else {
-                openTerminal();
-            }
-        }
-        
-        function openTerminal() {
+        async function openTerminal() {
             $('modal').classList.add('open');
+            $('termBtn').classList.add('active');
             $('term-input').focus();
-            if (!sessionId) {
-                startTerminal();
+            if (!shellId) {
+                appendTerm('Starting shell...\n', 'running');
+                try {
+                    const r = await fetch('/api/shell/start');
+                    const d = await r.json();
+                    shellId = d.id;
+                    appendTerm('Shell ready. Type commands below.\n\n', 'success');
+                    startPolling();
+                } catch(e) { appendTerm('Error: ' + e.message + '\n', 'error'); }
             }
         }
         
         function closeTerminal() {
             $('modal').classList.remove('open');
+            $('termBtn').classList.remove('active');
         }
         
-        function closeOnOverlay(e) {
-            if (e.target === $('modal')) closeTerminal();
+        function appendTerm(txt, cls) {
+            const out = $('term-output');
+            const span = document.createElement('span');
+            if (cls) span.className = cls;
+            span.textContent = txt;
+            out.appendChild(span);
+            out.scrollTop = out.scrollHeight;
         }
         
-        // Keyboard shortcuts
-        document.addEventListener('keydown', e => {
-            if ((e.metaKey || e.ctrlKey) && e.key === '`') {
-                e.preventDefault();
-                toggleTerminal();
-            }
-            if (e.key === 'Escape' && $('modal').classList.contains('open')) {
-                closeTerminal();
-            }
-        });
+        function startPolling() {
+            if (pollInterval) return;
+            pollInterval = setInterval(async () => {
+                if (!shellId) return;
+                try {
+                    const r = await fetch('/api/shell/read/' + shellId);
+                    const d = await r.json();
+                    if (d.output) appendTerm(d.output);
+                } catch(e) {}
+            }, 200);
+        }
         
-        // Terminal input
-        $('term-input').addEventListener('keydown', async (e) => {
+        async function sendCmd(cmd) {
+            if (!shellId) return;
+            try {
+                await fetch('/api/shell/write/' + shellId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: cmd })
+                });
+            } catch(e) { appendTerm('Error: ' + e.message + '\n', 'error'); }
+        }
+        
+        $('term-input').addEventListener('keydown', async e => {
             if (e.key === 'Enter') {
                 const cmd = e.target.value;
                 e.target.value = '';
-                if (cmd.trim()) {
-                    cmdHistory.push(cmd);
-                    historyIndex = cmdHistory.length;
-                }
-                await sendInput(cmd);
+                if (cmd.trim()) { history.push(cmd); histIdx = history.length; }
+                appendTerm('$ ' + cmd + '\n', 'success');
+                await sendCmd(cmd);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (historyIndex > 0) e.target.value = cmdHistory[--historyIndex];
+                if (histIdx > 0) e.target.value = history[--histIdx];
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (historyIndex < cmdHistory.length - 1) e.target.value = cmdHistory[++historyIndex];
-                else { historyIndex = cmdHistory.length; e.target.value = ''; }
-            } else if (e.ctrlKey && e.key === 'c') {
-                // Send Ctrl+C
-                sendInput('\x03');
+                if (histIdx < history.length - 1) e.target.value = history[++histIdx];
+                else { histIdx = history.length; e.target.value = ''; }
             }
         });
         
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', stopTerminal);
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === '`') { e.preventDefault(); toggleTerminal(); }
+            if (e.key === 'Escape' && $('modal').classList.contains('open')) closeTerminal();
+        });
+        
+        window.addEventListener('beforeunload', () => {
+            if (shellId) fetch('/api/shell/' + shellId, { method: 'DELETE' });
+        });
     </script>
 </body>
 </html>

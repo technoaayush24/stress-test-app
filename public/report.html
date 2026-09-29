@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Assessment Report - Kuros Platform</title>
+    <style>
+        :root { --green: #0f0; --dark: #003300; --bg: #0a0a0a; --card: #111; --red: #ff4444; --orange: #ff8800; --yellow: #ffcc00; --blue: #4488ff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Consolas', 'Monaco', monospace; background: var(--bg); color: var(--green); min-height: 100vh; display: flex; }
+        
+        /* Sidebar */
+        .sidebar { width: 250px; background: var(--card); border-right: 1px solid var(--dark); padding: 20px; position: fixed; height: 100vh; overflow-y: auto; }
+        .sidebar h1 { font-size: 1rem; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--dark); }
+        .nav-section { margin-bottom: 20px; }
+        .nav-section h3 { font-size: 0.75rem; color: #666; margin-bottom: 8px; text-transform: uppercase; }
+        .nav-link { display: block; padding: 8px 12px; color: var(--green); text-decoration: none; font-size: 0.85rem; border-left: 2px solid transparent; margin-bottom: 2px; }
+        .nav-link:hover { background: var(--dark); border-left-color: var(--green); }
+        .nav-link.active { background: var(--dark); border-left-color: var(--green); }
+        
+        /* Main content */
+        .main { margin-left: 250px; flex: 1; padding: 30px; max-width: 1200px; }
+        
+        /* Header */
+        .report-header { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--dark); }
+        .report-header h1 { font-size: 1.8rem; margin-bottom: 10px; }
+        .report-header .meta { font-size: 0.8rem; color: #666; }
+        .report-header .meta span { margin-right: 20px; }
+        
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: var(--card); border: 1px solid var(--dark); padding: 20px; text-align: center; }
+        .stat-card .value { font-size: 2.5rem; font-weight: bold; }
+        .stat-card .label { font-size: 0.75rem; color: #666; margin-top: 5px; }
+        .stat-card.critical .value { color: var(--red); }
+        .stat-card.high .value { color: var(--orange); }
+        .stat-card.medium .value { color: var(--yellow); }
+        .stat-card.low .value { color: var(--blue); }
+        
+        /* Sections */
+        section { margin-bottom: 40px; }
+        section h2 { font-size: 1.2rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--dark); }
+        
+        /* Finding Cards */
+        .finding { background: var(--card); border: 1px solid var(--dark); margin-bottom: 15px; }
+        .finding-header { padding: 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .finding-header:hover { background: #1a1a1a; }
+        .finding-title { display: flex; align-items: center; gap: 12px; }
+        .finding-id { font-size: 0.75rem; color: #666; }
+        .finding-name { font-size: 0.9rem; }
+        .severity { padding: 4px 10px; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; }
+        .severity.critical { background: var(--red); color: #000; }
+        .severity.high { background: var(--orange); color: #000; }
+        .severity.medium { background: var(--yellow); color: #000; }
+        .severity.low { background: var(--blue); color: #000; }
+        .finding-body { display: none; padding: 15px; border-top: 1px solid var(--dark); }
+        .finding.open .finding-body { display: block; }
+        .finding-section { margin-bottom: 15px; }
+        .finding-section h4 { font-size: 0.8rem; color: #888; margin-bottom: 8px; text-transform: uppercase; }
+        .finding-section p, .finding-section pre { font-size: 0.85rem; line-height: 1.5; }
+        .finding-section pre { background: #000; padding: 12px; overflow-x: auto; border: 1px solid var(--dark); }
+        .cvss { display: inline-block; padding: 4px 8px; background: var(--dark); font-size: 0.8rem; margin-top: 5px; }
+        
+        /* Overview text */
+        .overview-text { font-size: 0.9rem; line-height: 1.7; color: #ccc; }
+        .overview-text p { margin-bottom: 15px; }
+        .highlight { color: var(--green); }
+        
+        /* Chart */
+        .chart-container { display: flex; gap: 30px; align-items: center; padding: 20px; background: var(--card); border: 1px solid var(--dark); }
+        .chart-bars { display: flex; gap: 10px; align-items: flex-end; height: 120px; }
+        .chart-bar { width: 60px; display: flex; flex-direction: column; align-items: center; }
+        .chart-bar .bar { width: 100%; background: var(--green); }
+        .chart-bar .bar.critical { background: var(--red); }
+        .chart-bar .bar.high { background: var(--orange); }
+        .chart-bar .bar.medium { background: var(--yellow); }
+        .chart-bar .bar.low { background: var(--blue); }
+        .chart-bar .count { font-size: 1.2rem; margin-bottom: 5px; }
+        .chart-bar .label { font-size: 0.7rem; color: #666; margin-top: 5px; }
+        .chart-legend { flex: 1; }
+        .chart-legend .item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.85rem; }
+        .chart-legend .dot { width: 12px; height: 12px; }
+        
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <h1>[ SECURITY REPORT ]</h1>
+        <div class="nav-section">
+            <h3>Overview</h3>
+            <a href="#overview" class="nav-link active">Executive Summary</a>
+            <a href="#stats" class="nav-link">Statistics</a>
+        </div>
+        <div class="nav-section">
+            <h3>Findings</h3>
+            <a href="#critical" class="nav-link">Critical (1)</a>
+            <a href="#high" class="nav-link">High (2)</a>
+            <a href="#medium" class="nav-link">Medium (10)</a>
+            <a href="#low" class="nav-link">Low (1)</a>
+        </div>
+        <div class="nav-section">
+            <h3>Tools</h3>
+            <a href="/" class="nav-link">Stress Test Suite</a>
+        </div>
+    </nav>
+
+    <main class="main">
+        <header class="report-header">
+            <h1>Kuros Platform Security Assessment</h1>
+            <div class="meta">
+                <span>📅 September 2026</span>
+                <span>🎯 kuros.cryboy.in</span>
+                <span>🔍 Black-box + Container Analysis</span>
+            </div>
+        </header>
+
+        <section id="overview">
+            <h2>Executive Summary</h2>
+            <div class="overview-text">
+                <p>A comprehensive security assessment was conducted on the <span class="highlight">Kuros</span> Kubernetes-based student deployment platform. The assessment identified <span class="highlight">14 vulnerabilities</span> ranging from Critical to Low severity.</p>
+                <p>The most severe finding is a <span class="highlight">Critical SSRF vulnerability</span> that could allow attackers to access AWS EC2 metadata and potentially steal IAM credentials from EKS nodes. Additionally, several <span class="highlight">resource exhaustion</span> and <span class="highlight">container isolation</span> issues were identified that could impact platform stability and multi-tenant security.</p>
+                <p>Immediate remediation is recommended for the Critical and High severity findings to prevent potential credential theft and denial of service attacks.</p>
+            </div>
+        </section>
+
+        <section id="stats">
+            <h2>Findings Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-card critical"><div class="value">1</div><div class="label">CRITICAL</div></div>
+                <div class="stat-card high"><div class="value">2</div><div class="label">HIGH</div></div>
+                <div class="stat-card medium"><div class="value">10</div><div class="label">MEDIUM</div></div>
+                <div class="stat-card low"><div class="value">1</div><div class="label">LOW</div></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-bars">
+                    <div class="chart-bar"><span class="count">1</span><div class="bar critical" style="height:20px"></div><span class="label">CRIT</span></div>
+                    <div class="chart-bar"><span class="count">2</span><div class="bar high" style="height:40px"></div><span class="label">HIGH</span></div>
+                    <div class="chart-bar"><span class="count">10</span><div class="bar medium" style="height:100px"></div><span class="label">MED</span></div>
+                    <div class="chart-bar"><span class="count">1</span><div class="bar low" style="height:20px"></div><span class="label">LOW</span></div>
+                </div>
+                <div class="chart-legend">
+                    <div class="item"><div class="dot" style="background:var(--red)"></div>Critical: Immediate exploitation risk</div>
+                    <div class="item"><div class="dot" style="background:var(--orange)"></div>High: Significant security impact</div>
+                    <div class="item"><div class="dot" style="background:var(--yellow)"></div>Medium: Moderate risk, should fix</div>
+                    <div class="item"><div class="dot" style="background:var(--blue)"></div>Low: Minor issues, best practice</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="critical">
+            <h2>Critical Findings</h2>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title">
+                        <span class="finding-id">vuln-0004</span>
+                        <span class="finding-name">SSRF to AWS IMDS - EKS Node IAM Credential Theft</span>
+                    </div>
+                    <span class="severity critical">Critical</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section">
+                        <h4>Description</h4>
+                        <p>Deployed containers can make HTTP requests to the AWS Instance Metadata Service (IMDS) at 169.254.169.254. This allows attackers to retrieve temporary IAM credentials associated with the EKS node role.</p>
+                    </div>
+                    <div class="finding-section">
+                        <h4>Impact</h4>
+                        <p>An attacker could steal AWS IAM credentials and use them to access other AWS services, potentially compromising the entire cloud infrastructure. The credentials could be used for lateral movement, data exfiltration, or resource hijacking.</p>
+                    </div>
+                    <div class="finding-section">
+                        <h4>CVSS Score</h4>
+                        <span class="cvss">CVSS 3.1: 9.6 (Critical) - AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H</span>
+                    </div>
+                    <div class="finding-section">
+                        <h4>Proof of Concept</h4>
+                        <pre>curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
+# Returns IAM role name
+
+curl http://169.254.169.254/latest/meta-data/iam/security-credentials/&lt;role-name&gt;
+# Returns AccessKeyId, SecretAccessKey, Token</pre>
+                    </div>
+                    <div class="finding-section">
+                        <h4>Remediation</h4>
+                        <p>1. Enable IMDSv2 with hop limit of 1 on all EKS nodes<br>
+                        2. Implement NetworkPolicies to block egress to 169.254.169.254<br>
+                        3. Use IRSA (IAM Roles for Service Accounts) instead of node roles</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="high">
+            <h2>High Findings</h2>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title">
+                        <span class="finding-id">vuln-0001</span>
+                        <span class="finding-name">Refresh Token Session Hijacking</span>
+                    </div>
+                    <span class="severity high">High</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section">
+                        <h4>Description</h4>
+                        <p>The /api/auth/refresh endpoint accepts refresh tokens without proper validation of the session state. Stolen refresh tokens can be used indefinitely to generate new access tokens.</p>
+                    </div>
+                    <div class="finding-section">
+                        <h4>CVSS Score</h4>
+                        <span class="cvss">CVSS 3.1: 7.4 (High)</span>
+                    </div>
+                    <div class="finding-section">
+                        <h4>Remediation</h4>
+                        <p>Implement refresh token rotation and bind tokens to device fingerprints. Invalidate all tokens on password change or logout.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title">
+                        <span class="finding-id">vuln-0005</span>
+                        <span class="finding-name">Missing K8s Resource Limits - DoS via Resource Exhaustion</span>
+                    </div>
+                    <span class="severity high">High</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section">
+                        <h4>Description</h4>
+                        <p>Deployed containers have no CPU or memory limits configured. A malicious user can exhaust node resources, causing denial of service for other tenants on the same node.</p>
+                    </div>
+                    <div class="finding-section">
+                        <h4>CVSS Score</h4>
+                        <span class="cvss">CVSS 3.1: 7.7 (High)</span>
+                    </div>
+                    <div class="finding-section">
+                        <h4>Remediation</h4>
+                        <p>Configure LimitRange and ResourceQuota for student namespaces. Set default CPU/memory limits and requests.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="medium">
+            <h2>Medium Findings</h2>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0007</span><span class="finding-name">Cryptomining Capability in Containers</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>Containers can download and execute cryptocurrency miners with unrestricted CPU usage and outbound connectivity.</p></div>
+                    <div class="finding-section"><h4>CVSS Score</h4><span class="cvss">CVSS 3.1: 6.5</span></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0008</span><span class="finding-name">OAuth Authorization Code Exposed in URL</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>GitHub OAuth authorization codes are exposed in URL query parameters, potentially leaking via referrer headers or browser history.</p></div>
+                    <div class="finding-section"><h4>CVSS Score</h4><span class="cvss">CVSS 3.1: 6.8</span></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0009</span><span class="finding-name">Project ID Enumeration via Predictable ObjectIDs</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>MongoDB ObjectIDs are predictable and allow enumeration of other users' projects via 403 vs 404 response differentiation.</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0011</span><span class="finding-name">K8s Internal Service Discovery via DNS</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>Containers can query internal Kubernetes DNS to discover services, namespaces, and other infrastructure details.</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0012</span><span class="finding-name">HTTP Header Information Disclosure</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>Response headers expose server technology (AmazonS3, CloudFront, Express) and infrastructure details (X-Amz-Cf-Pop: BOM78-P2).</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0013</span><span class="finding-name">Inconsistent Rate Limiting</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>Rate limiting is applied inconsistently - /api/builds is limited but /api/projects allows unlimited requests.</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0014</span><span class="finding-name">Writable Container Root Filesystem</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>Container filesystems are writable, allowing installation of additional tools like nmap and netcat for further exploitation.</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0015</span><span class="finding-name">Verbose API Error Messages</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>API errors reveal internal field names (installationId, repositoryFullName) and validation logic details.</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0016</span><span class="finding-name">No Per-User Project Limit</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>Users can create unlimited projects (25+ tested), consuming excessive K8s resources and storage.</p></div>
+                </div>
+            </div>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title"><span class="finding-id">vuln-0017</span><span class="finding-name">Deployment Limit Bypass</span></div>
+                    <span class="severity medium">Medium</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section"><h4>Description</h4><p>The stated limit of 3 concurrent deployments can be bypassed - achieved 17-26 concurrent builds through rapid API requests.</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="low">
+            <h2>Low Findings</h2>
+            <div class="finding" onclick="this.classList.toggle('open')">
+                <div class="finding-header">
+                    <div class="finding-title">
+                        <span class="finding-id">vuln-0010</span>
+                        <span class="finding-name">GitHub Installation ID Exposed in OAuth Callback</span>
+                    </div>
+                    <span class="severity low">Low</span>
+                </div>
+                <div class="finding-body">
+                    <div class="finding-section">
+                        <h4>Description</h4>
+                        <p>The GitHub App installation ID (165869015) is exposed in the OAuth callback URL. While not directly exploitable, it provides reconnaissance information.</p>
+                    </div>
+                    <div class="finding-section">
+                        <h4>CVSS Score</h4>
+                        <span class="cvss">CVSS 3.1: 3.1 (Low)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Smooth scroll for nav links
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', e => {
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

