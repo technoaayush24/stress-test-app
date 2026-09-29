@@ -1,6 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
@@ -176,6 +176,62 @@ app.get('/api/load/concurrent', async (req, res) => {
     }
     const results = await Promise.all(promises);
     res.json({ count, time: Date.now() - start, sample: results.slice(0, 5) });
+});
+
+// ============== SHELL ENDPOINTS ==============
+
+// Change directory
+app.get('/api/shell/cd', (req, res) => {
+    const dir = req.query.dir || '/';
+    const cwd = req.query.cwd || '/app';
+    
+    try {
+        let newPath;
+        if (dir.startsWith('/')) {
+            newPath = dir;
+        } else if (dir === '..') {
+            newPath = path.dirname(cwd);
+        } else if (dir === '~') {
+            newPath = process.env.HOME || '/root';
+        } else {
+            newPath = path.join(cwd, dir);
+        }
+        
+        // Normalize and check if exists
+        newPath = path.resolve(newPath);
+        if (fs.existsSync(newPath) && fs.statSync(newPath).isDirectory()) {
+            res.json({ success: true, cwd: newPath });
+        } else {
+            res.json({ success: false, error: 'cd: ' + dir + ': No such directory' });
+        }
+    } catch (e) {
+        res.json({ success: false, error: e.message });
+    }
+});
+
+// Execute shell command
+app.post('/api/shell/exec', (req, res) => {
+    const { cmd, cwd } = req.body;
+    
+    if (!cmd) {
+        return res.json({ error: 'No command provided' });
+    }
+    
+    try {
+        const output = execSync(cmd, {
+            cwd: cwd || '/app',
+            timeout: 30000,
+            maxBuffer: 10 * 1024 * 1024,
+            encoding: 'utf8',
+            shell: '/bin/sh'
+        });
+        res.json({ output: output || '' });
+    } catch (e) {
+        // execSync throws on non-zero exit, but we still want the output
+        const output = e.stdout ? e.stdout.toString() : '';
+        const error = e.stderr ? e.stderr.toString() : e.message;
+        res.json({ output, error });
+    }
 });
 
 app.get('/health', (req, res) => res.send('OK'));

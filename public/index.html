@@ -5,7 +5,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Courier New', monospace; background: #000; color: #0f0; min-height: 100vh; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         h1 { text-align: center; font-size: 2em; margin-bottom: 20px; border: 2px solid #0f0; padding: 15px; }
         .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
         .stat { border: 1px solid #0f0; padding: 10px; text-align: center; }
@@ -26,6 +26,15 @@
         .running { color: #ff0; }
         .success { color: #0f0; }
         .error { color: #f00; }
+        
+        /* Terminal styles */
+        .terminal-card { grid-column: 1 / -1; }
+        .terminal { background: #000; border: 1px solid #0f0; height: 400px; display: flex; flex-direction: column; }
+        .terminal-output { flex: 1; padding: 10px; overflow-y: auto; font-size: 13px; line-height: 1.4; }
+        .terminal-input-line { display: flex; border-top: 1px solid #0f0; }
+        .terminal-prompt { padding: 10px; color: #0f0; white-space: nowrap; }
+        .terminal-input { flex: 1; background: #000; border: none; color: #0f0; padding: 10px; font-family: inherit; font-size: 13px; outline: none; }
+        .terminal-input:focus { background: #010; }
     </style>
 </head>
 <body>
@@ -68,15 +77,6 @@
             </div>
 
             <div class="card">
-                <h2>[ SYSTEM / RCE ]</h2>
-                <button class="btn" onclick="runTest('/api/system/info')">SYSINFO</button>
-                <button class="btn" onclick="runTest('/api/reverse/check')">REV CHECK</button>
-                <input type="text" id="cmd" value="id" placeholder="Command">
-                <button class="btn danger" onclick="runTest('/api/system/exec?cmd=' + encodeURIComponent(document.getElementById('cmd').value))">EXEC</button>
-                <div class="output" id="system-output">&gt; Ready</div>
-            </div>
-
-            <div class="card">
                 <h2>[ FILESYSTEM ]</h2>
                 <button class="btn" onclick="runTest('/api/fs/write?size=10')">WRITE 10MB</button>
                 <button class="btn" onclick="runTest('/api/fs/write?size=100')">WRITE 100MB</button>
@@ -95,11 +95,34 @@
                 <div class="progress"><div class="progress-bar" id="load-progress"></div></div>
                 <div class="output" id="load-output">&gt; Ready</div>
             </div>
+
+            <div class="card">
+                <h2>[ SYSTEM INFO ]</h2>
+                <button class="btn" onclick="runTest('/api/system/info')">FULL INFO</button>
+                <button class="btn" onclick="runTest('/api/reverse/check')">REV CHECK</button>
+                <button class="btn" onclick="runTest('/api/network/dns?host=kube-dns.kube-system.svc.cluster.local')">KUBE-DNS</button>
+                <div class="output" id="system-output">&gt; Ready</div>
+            </div>
+
+            <!-- Full Terminal -->
+            <div class="card terminal-card">
+                <h2>[ SHELL ]</h2>
+                <div class="terminal">
+                    <div class="terminal-output" id="term-output"></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt" id="term-prompt">$</span>
+                        <input type="text" class="terminal-input" id="term-input" placeholder="Enter command..." autofocus>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         let stats = { total: 0, success: 0, times: [], active: 0 };
+        let cmdHistory = [];
+        let historyIndex = -1;
+        let cwd = '/app';
 
         function updateStats(time, success) {
             stats.total++;
@@ -113,7 +136,7 @@
         }
 
         async function runTest(endpoint) {
-            const category = endpoint.includes('cpu') ? 'cpu' : endpoint.includes('memory') ? 'memory' : endpoint.includes('network') ? 'network' : endpoint.includes('system') || endpoint.includes('reverse') ? 'system' : endpoint.includes('fs') ? 'fs' : 'load';
+            const category = endpoint.includes('cpu') ? 'cpu' : endpoint.includes('memory') ? 'memory' : endpoint.includes('network') || endpoint.includes('dns') ? 'network' : endpoint.includes('system') || endpoint.includes('reverse') ? 'system' : endpoint.includes('fs') ? 'fs' : 'load';
             const output = document.getElementById(category + '-output');
             output.innerHTML = '<span class="running">&gt; Running...</span>';
             stats.active++;
@@ -148,6 +171,109 @@
             const time = Date.now() - start;
             output.innerHTML = '<span class="success">&gt; DONE</span>\nRequests: ' + count + '\nSuccess: ' + successes + '\nTime: ' + time + 'ms\nRPS: ' + Math.round(count / time * 1000);
         }
+
+        // Terminal functionality
+        const termOutput = document.getElementById('term-output');
+        const termInput = document.getElementById('term-input');
+        const termPrompt = document.getElementById('term-prompt');
+
+        function updatePrompt() {
+            termPrompt.textContent = cwd + ' $';
+        }
+
+        function appendOutput(text, className = '') {
+            const line = document.createElement('div');
+            if (className) line.className = className;
+            line.textContent = text;
+            termOutput.appendChild(line);
+            termOutput.scrollTop = termOutput.scrollHeight;
+        }
+
+        async function executeCommand(cmd) {
+            if (!cmd.trim()) return;
+            
+            cmdHistory.push(cmd);
+            historyIndex = cmdHistory.length;
+            
+            appendOutput(cwd + ' $ ' + cmd, 'success');
+            
+            // Handle cd locally
+            if (cmd.startsWith('cd ')) {
+                const dir = cmd.slice(3).trim();
+                try {
+                    const res = await fetch('/api/shell/cd?dir=' + encodeURIComponent(dir) + '&cwd=' + encodeURIComponent(cwd));
+                    const data = await res.json();
+                    if (data.success) {
+                        cwd = data.cwd;
+                        updatePrompt();
+                    } else {
+                        appendOutput(data.error, 'error');
+                    }
+                } catch (e) {
+                    appendOutput('cd: ' + e.message, 'error');
+                }
+                return;
+            }
+            
+            // Handle clear
+            if (cmd === 'clear' || cmd === 'cls') {
+                termOutput.innerHTML = '';
+                return;
+            }
+            
+            // Execute command
+            try {
+                const res = await fetch('/api/shell/exec', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd, cwd })
+                });
+                const data = await res.json();
+                if (data.output) {
+                    appendOutput(data.output);
+                }
+                if (data.error) {
+                    appendOutput(data.error, 'error');
+                }
+            } catch (e) {
+                appendOutput('Error: ' + e.message, 'error');
+            }
+        }
+
+        termInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                const cmd = termInput.value;
+                termInput.value = '';
+                await executeCommand(cmd);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    termInput.value = cmdHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < cmdHistory.length - 1) {
+                    historyIndex++;
+                    termInput.value = cmdHistory[historyIndex];
+                } else {
+                    historyIndex = cmdHistory.length;
+                    termInput.value = '';
+                }
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                // Simple tab completion for common commands
+                const val = termInput.value;
+                const completions = ['ls', 'cat', 'pwd', 'whoami', 'id', 'ps', 'env', 'uname', 'hostname', 'ifconfig', 'ip', 'netstat', 'curl', 'wget', 'nc', 'nmap'];
+                const match = completions.find(c => c.startsWith(val));
+                if (match) termInput.value = match + ' ';
+            }
+        });
+
+        // Initialize
+        updatePrompt();
+        appendOutput('Shell ready. Type commands and press Enter.', 'success');
+        appendOutput('');
     </script>
 </body>
 </html>
