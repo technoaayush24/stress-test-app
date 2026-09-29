@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stress Test Suite</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
     <style>
         :root { --green: #0f0; --dark: #003300; --bg: #0a0a0a; --red: #f33; --yellow: #ff0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,24 +36,26 @@
         .success { color: var(--green); }
         .error { color: var(--red); }
         
-        /* Modal */
+        /* Terminal Modal */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
         .modal-overlay.open { display: flex; }
-        .modal { background: #000; border: 2px solid var(--green); width: 100%; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; }
+        .modal { background: #000; border: 2px solid var(--green); width: 100%; max-width: 900px; height: 70vh; display: flex; flex-direction: column; }
         .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--dark); background: #0a0a0a; }
         .modal-header h2 { font-size: 0.9rem; font-weight: normal; }
-        .modal-header .status { font-size: 0.75rem; opacity: 0.7; }
+        .modal-header .status { font-size: 0.75rem; }
         .modal-header .status.connected { color: var(--green); }
         .modal-header .status.disconnected { color: var(--red); }
         .modal-close { background: none; border: 1px solid var(--green); color: var(--green); width: 28px; height: 28px; cursor: pointer; font-size: 1rem; }
         .modal-close:hover { background: var(--green); color: var(--bg); }
-        .terminal-container { flex: 1; padding: 4px; overflow: hidden; }
+        
+        .terminal { flex: 1; display: flex; flex-direction: column; font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; }
+        .terminal-output { flex: 1; padding: 12px; overflow-y: auto; background: #000; color: var(--green); white-space: pre-wrap; word-break: break-all; line-height: 1.4; }
+        .terminal-input-row { display: flex; align-items: center; padding: 8px 12px; background: #111; border-top: 1px solid var(--dark); }
+        .terminal-prompt { color: var(--green); margin-right: 8px; }
+        .terminal-input { flex: 1; background: transparent; border: none; color: var(--green); font-family: inherit; font-size: 14px; outline: none; }
         
         @media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 650px) { .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: var(--dark); }
     </style>
 </head>
 <body>
@@ -153,17 +154,22 @@
                 <span class="status disconnected" id="connStatus">● Disconnected</span>
                 <button class="modal-close" onclick="closeTerminal()">✕</button>
             </div>
-            <div class="terminal-container" id="terminal"></div>
+            <div class="terminal">
+                <div class="terminal-output" id="termOutput"></div>
+                <div class="terminal-input-row">
+                    <span class="terminal-prompt">$</span>
+                    <input type="text" class="terminal-input" id="termInput" placeholder="Type command and press Enter..." autofocus>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
     <script>
         const $ = id => document.getElementById(id);
         const stats = { total: 0, success: 0, times: [], active: 0 };
-        let term = null, ws = null, fitAddon = null;
+        let ws = null;
+        const history = [];
+        let historyIndex = -1;
 
         function updateStats(time, ok) {
             stats.total++; if(ok) stats.success++;
@@ -206,36 +212,15 @@
             out.innerHTML = '<span class="success">&gt; DONE</span>\n' + n + ' req | ' + ok + ' ok | ' + t + 'ms | ' + Math.round(n/t*1000) + ' rps';
         }
 
-        // Real WebSocket Terminal
-        function initTerminal() {
-            if (term) return;
-            
-            term = new Terminal({
-                cursorBlink: true,
-                fontSize: 15,
-                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                theme: {
-                    background: '#000000',
-                    foreground: '#00ff00',
-                    cursor: '#00ff00',
-                    cursorAccent: '#000000',
-                    selectionBackground: '#003300'
-                },
-                allowProposedApi: true
-            });
-            
-            fitAddon = new FitAddon.FitAddon();
-            term.loadAddon(fitAddon);
-            term.loadAddon(new WebLinksAddon.WebLinksAddon());
-            
-            term.open($('terminal'));
-            fitAddon.fit();
-            
-            window.addEventListener('resize', () => {
-                if (fitAddon && $('modal').classList.contains('open')) {
-                    fitAddon.fit();
-                }
-            });
+        // Terminal functions
+        function appendOutput(text) {
+            const out = $('termOutput');
+            out.textContent += text;
+            out.scrollTop = out.scrollHeight;
+        }
+        
+        function clearOutput() {
+            $('termOutput').textContent = '';
         }
         
         function connectWS() {
@@ -247,21 +232,22 @@
             ws.onopen = () => {
                 $('connStatus').textContent = '● Connected';
                 $('connStatus').className = 'status connected';
-                term.focus();
+                appendOutput('Connected to shell. Type commands below.\n\n');
+                $('termInput').focus();
             };
             
             ws.onmessage = (e) => {
                 try {
                     const msg = JSON.parse(e.data);
                     if (msg.type === 'output') {
-                        term.write(msg.data);
+                        appendOutput(msg.data);
                     } else if (msg.type === 'exit') {
-                        term.writeln('\r\n[Shell exited with code ' + msg.code + ']');
+                        appendOutput('\n[Shell exited]\n');
                         $('connStatus').textContent = '● Disconnected';
                         $('connStatus').className = 'status disconnected';
                     }
                 } catch {
-                    term.write(e.data);
+                    appendOutput(e.data);
                 }
             };
             
@@ -271,15 +257,17 @@
             };
             
             ws.onerror = () => {
-                term.writeln('\r\n[Connection error]');
+                appendOutput('[Connection error]\n');
             };
-            
-            // Send terminal input to server
-            term.onData(data => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type: 'input', data }));
-                }
-            });
+        }
+        
+        function sendCommand(cmd) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Show command in output
+                appendOutput('$ ' + cmd + '\n');
+                // Send to server
+                ws.send(JSON.stringify({ type: 'command', data: cmd }));
+            }
         }
 
         function toggleTerminal() { 
@@ -289,11 +277,8 @@
         function openTerminal() {
             $('modal').classList.add('open');
             $('termBtn').classList.add('active');
-            initTerminal();
-            setTimeout(() => {
-                fitAddon.fit();
-                connectWS();
-            }, 100);
+            connectWS();
+            setTimeout(() => $('termInput').focus(), 100);
         }
         
         function closeTerminal() {
@@ -301,11 +286,61 @@
             $('termBtn').classList.remove('active');
         }
         
-        document.addEventListener('keydown', e => {
-            if ((e.metaKey || e.ctrlKey) && e.key === '`') { e.preventDefault(); toggleTerminal(); }
-            if (e.key === 'Escape' && $('modal').classList.contains('open')) closeTerminal();
+        // Input handling
+        $('termInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = e.target.value.trim();
+                e.target.value = '';
+                
+                if (cmd === 'clear') {
+                    clearOutput();
+                    return;
+                }
+                
+                if (cmd) {
+                    history.push(cmd);
+                    historyIndex = history.length;
+                    sendCommand(cmd);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    e.target.value = history[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < history.length - 1) {
+                    historyIndex++;
+                    e.target.value = history[historyIndex];
+                } else {
+                    historyIndex = history.length;
+                    e.target.value = '';
+                }
+            } else if (e.key === 'c' && e.ctrlKey) {
+                // Ctrl+C - send interrupt
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'input', data: '\x03' }));
+                    appendOutput('^C\n');
+                }
+            } else if (e.key === 'l' && e.ctrlKey) {
+                e.preventDefault();
+                clearOutput();
+            }
         });
         
+        // Global shortcuts
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === '`') { 
+                e.preventDefault(); 
+                toggleTerminal(); 
+            }
+            if (e.key === 'Escape' && $('modal').classList.contains('open')) {
+                closeTerminal();
+            }
+        });
+        
+        // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (ws) ws.close();
         });

@@ -15,21 +15,32 @@ const wss = new WebSocket.Server({ server, path: '/ws/terminal' });
 app.use(express.json());
 app.use(express.static('public'));
 
-// WebSocket Terminal - Real PTY-like experience
+// WebSocket Terminal
 wss.on('connection', (ws) => {
     console.log('Terminal connected');
     
-    const shell = spawn('/bin/sh', ['-i'], {
+    // Use sh without -i flag to avoid tty warning
+    const shell = spawn('/bin/sh', [], {
         cwd: '/tmp',
         env: { 
             ...process.env, 
             TERM: 'xterm-256color',
-            PS1: '\\w $ ',
-            HOME: '/tmp'
-        }
+            PS1: '$ ',
+            HOME: '/tmp',
+            PATH: process.env.PATH
+        },
+        stdio: ['pipe', 'pipe', 'pipe']
     });
     
-    // Send shell output to client immediately
+    let buffer = '';
+    
+    // Send initial prompt
+    setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'output', data: '$ ' }));
+        }
+    }, 100);
+    
     shell.stdout.on('data', (data) => {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'output', data: data.toString() }));
@@ -49,17 +60,20 @@ wss.on('connection', (ws) => {
         ws.close();
     });
     
-    // Receive input from client
     ws.on('message', (msg) => {
         try {
-            const { type, data } = JSON.parse(msg);
-            if (type === 'input') {
-                shell.stdin.write(data);
-            } else if (type === 'resize') {
-                // Can't resize without PTY, but accept the message
+            const parsed = JSON.parse(msg);
+            if (parsed.type === 'input') {
+                shell.stdin.write(parsed.data);
+                // Echo newline and prompt after command
+                if (parsed.data === '\r' || parsed.data === '\n') {
+                    // Command was sent, prompt will come from output or we add it
+                }
+            } else if (parsed.type === 'command') {
+                // Full command mode - write command + newline
+                shell.stdin.write(parsed.data + '\n');
             }
         } catch (e) {
-            // Raw input fallback
             shell.stdin.write(msg.toString());
         }
     });
