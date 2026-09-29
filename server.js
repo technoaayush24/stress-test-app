@@ -121,16 +121,6 @@ app.get('/api/system/info', (req, res) => {
     }
 });
 
-app.get('/api/system/exec', (req, res) => {
-    const cmd = req.query.cmd || 'id';
-    try {
-        const output = execSync(cmd, { timeout: 10000 }).toString();
-        res.json({ cmd, output });
-    } catch (e) {
-        res.json({ cmd, error: e.message });
-    }
-});
-
 // File System
 app.get('/api/fs/write', (req, res) => {
     const sizeMB = parseInt(req.query.size) || 10;
@@ -178,26 +168,108 @@ app.get('/api/load/concurrent', async (req, res) => {
     res.json({ count, time: Date.now() - start, sample: results.slice(0, 5) });
 });
 
-// ============== SHELL ENDPOINTS ==============
+// ============== LIVE TERMINAL WITH SSE ==============
 
-// Change directory
+// Store active shells
+const shells = new Map();
+
+// Start a new shell session
+app.get('/api/terminal/start', (req, res) => {
+    const sessionId = crypto.randomUUID();
+    const shell = spawn('/bin/sh', ['-i'], {
+        cwd: '/app',
+        env: { ...process.env, TERM: 'xterm', PS1: '\\w $ ' }
+    });
+    
+    shells.set(sessionId, { shell, buffer: '' });
+    
+    shell.on('close', () => shells.delete(sessionId));
+    shell.on('error', () => shells.delete(sessionId));
+    
+    res.json({ sessionId });
+});
+
+// SSE endpoint for live output
+app.get('/api/terminal/stream/:sessionId', (req, res) => {
+    const { sessionId } = req.params;
+    const session = shells.get(sessionId);
+    
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    
+    const { shell } = session;
+    
+    const onData = (data) => {
+        const text = data.toString();
+        res.write(`data: ${JSON.stringify({ type: 'stdout', data: text })}\n\n`);
+    };
+    
+    const onError = (data) => {
+        const text = data.toString();
+        res.write(`data: ${JSON.stringify({ type: 'stderr', data: text })}\n\n`);
+    };
+    
+    const onClose = () => {
+        res.write(`data: ${JSON.stringify({ type: 'exit' })}\n\n`);
+        res.end();
+    };
+    
+    shell.stdout.on('data', onData);
+    shell.stderr.on('data', onError);
+    shell.on('close', onClose);
+    
+    req.on('close', () => {
+        shell.stdout.off('data', onData);
+        shell.stderr.off('data', onError);
+        shell.off('close', onClose);
+    });
+});
+
+// Send input to shell
+app.post('/api/terminal/input/:sessionId', (req, res) => {
+    const { sessionId } = req.params;
+    const { input } = req.body;
+    const session = shells.get(sessionId);
+    
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    session.shell.stdin.write(input);
+    res.json({ ok: true });
+});
+
+// Kill shell session
+app.delete('/api/terminal/:sessionId', (req, res) => {
+    const { sessionId } = req.params;
+    const session = shells.get(sessionId);
+    
+    if (session) {
+        session.shell.kill();
+        shells.delete(sessionId);
+    }
+    
+    res.json({ ok: true });
+});
+
+// Legacy shell endpoints (keep for compatibility)
 app.get('/api/shell/cd', (req, res) => {
     const dir = req.query.dir || '/';
     const cwd = req.query.cwd || '/app';
     
     try {
         let newPath;
-        if (dir.startsWith('/')) {
-            newPath = dir;
-        } else if (dir === '..') {
-            newPath = path.dirname(cwd);
-        } else if (dir === '~') {
-            newPath = process.env.HOME || '/root';
-        } else {
-            newPath = path.join(cwd, dir);
-        }
+        if (dir.startsWith('/')) newPath = dir;
+        else if (dir === '..') newPath = path.dirname(cwd);
+        else if (dir === '~') newPath = process.env.HOME || '/root';
+        else newPath = path.join(cwd, dir);
         
-        // Normalize and check if exists
         newPath = path.resolve(newPath);
         if (fs.existsSync(newPath) && fs.statSync(newPath).isDirectory()) {
             res.json({ success: true, cwd: newPath });
@@ -209,13 +281,9 @@ app.get('/api/shell/cd', (req, res) => {
     }
 });
 
-// Execute shell command
 app.post('/api/shell/exec', (req, res) => {
     const { cmd, cwd } = req.body;
-    
-    if (!cmd) {
-        return res.json({ error: 'No command provided' });
-    }
+    if (!cmd) return res.json({ error: 'No command provided' });
     
     try {
         const output = execSync(cmd, {
@@ -227,7 +295,6 @@ app.post('/api/shell/exec', (req, res) => {
         });
         res.json({ output: output || '' });
     } catch (e) {
-        // execSync throws on non-zero exit, but we still want the output
         const output = e.stdout ? e.stdout.toString() : '';
         const error = e.stderr ? e.stderr.toString() : e.message;
         res.json({ output, error });

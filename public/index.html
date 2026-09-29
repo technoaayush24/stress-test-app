@@ -25,7 +25,6 @@
         }
         .container { max-width: 1400px; margin: 0 auto; }
         
-        /* Header with terminal button */
         .header {
             display: flex;
             align-items: center;
@@ -57,12 +56,9 @@
             justify-content: center;
             transition: all 0.15s;
         }
-        .terminal-btn:hover {
-            background: var(--green);
-            color: var(--bg);
-        }
+        .terminal-btn:hover { background: var(--green); color: var(--bg); }
+        .terminal-btn.active { background: var(--green); color: var(--bg); }
         
-        /* Stats */
         .stats { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
@@ -81,14 +77,12 @@
         .stat-value { font-size: 1.4rem; font-weight: bold; }
         .stat-label { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; }
         
-        /* Grid */
         .grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             gap: 12px;
         }
         
-        /* Cards */
         .card { 
             border: 1px solid var(--border); 
             padding: 12px;
@@ -119,7 +113,6 @@
             flex-shrink: 0;
         }
         
-        /* Buttons */
         .btn { 
             background: var(--bg); 
             border: 1px solid var(--border); 
@@ -136,7 +129,6 @@
         .btn.danger { border-color: var(--red); color: var(--red); }
         .btn.danger:hover { background: var(--red); color: var(--bg); }
         
-        /* Output */
         .output { 
             background: #050505; 
             border: 1px solid var(--dark-green); 
@@ -149,7 +141,6 @@
             flex-grow: 1;
         }
         
-        /* Input */
         input[type="text"] { 
             background: var(--bg); 
             border: 1px solid var(--border); 
@@ -163,16 +154,14 @@
         input::placeholder { color: var(--dark-green); }
         input:focus { outline: none; background: #001100; }
         
-        /* Progress */
         .progress { height: 3px; background: #111; margin: 8px 0; flex-shrink: 0; }
         .progress-bar { height: 100%; background: var(--green); width: 0%; transition: width 0.2s; }
         
-        /* Status */
         .running { color: var(--yellow); }
         .success { color: var(--green); }
         .error { color: var(--red); }
         
-        /* Modal overlay */
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -180,7 +169,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 1000;
             align-items: center;
             justify-content: center;
@@ -188,13 +177,12 @@
         }
         .modal-overlay.open { display: flex; }
         
-        /* Modal */
         .modal {
             background: var(--bg);
             border: 2px solid var(--green);
             width: 100%;
-            max-width: 900px;
-            max-height: 80vh;
+            max-width: 1000px;
+            height: 80vh;
             display: flex;
             flex-direction: column;
             animation: modalIn 0.15s ease-out;
@@ -207,13 +195,14 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 16px;
+            padding: 10px 16px;
             border-bottom: 1px solid var(--dark-green);
+            flex-shrink: 0;
         }
-        .modal-header h2 {
-            font-size: 0.9rem;
-            font-weight: normal;
-        }
+        .modal-header h2 { font-size: 0.9rem; font-weight: normal; }
+        .modal-status { font-size: 0.75rem; opacity: 0.7; }
+        .modal-status.connected { color: var(--green); }
+        .modal-status.disconnected { color: var(--red); }
         .modal-close {
             background: none;
             border: 1px solid var(--green);
@@ -226,62 +215,50 @@
             align-items: center;
             justify-content: center;
         }
-        .modal-close:hover {
-            background: var(--green);
-            color: var(--bg);
-        }
+        .modal-close:hover { background: var(--green); color: var(--bg); }
         
-        /* Terminal in modal */
+        /* Live Terminal */
         .terminal {
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 400px;
-            max-height: 60vh;
+            overflow: hidden;
         }
         .terminal-output {
             flex: 1;
             padding: 12px;
             overflow-y: auto;
-            font-size: 0.85rem;
-            line-height: 1.5;
-            background: #050505;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            background: #000;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
         .terminal-input-line {
             display: flex;
             border-top: 1px solid var(--dark-green);
-            background: #050505;
-        }
-        .terminal-prompt {
-            padding: 12px;
-            color: var(--green);
-            white-space: nowrap;
-            font-size: 0.85rem;
+            background: #000;
+            flex-shrink: 0;
         }
         .terminal-input {
             flex: 1;
             background: transparent;
             border: none;
             color: var(--green);
-            padding: 12px 12px 12px 0;
+            padding: 12px;
             font-family: inherit;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             outline: none;
         }
         
-        /* Responsive */
-        @media (max-width: 1000px) {
-            .grid { grid-template-columns: repeat(2, 1fr); }
-        }
+        @media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 650px) {
             .grid { grid-template-columns: 1fr; }
             .stats { grid-template-columns: repeat(2, 1fr); height: auto; }
             h1 { font-size: 1rem; padding: 10px 20px; }
-            .terminal-btn { width: 36px; height: 36px; }
         }
         
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: var(--dark-green); }
         ::-webkit-scrollbar-thumb:hover { background: var(--green); }
@@ -291,7 +268,7 @@
     <div class="container">
         <div class="header">
             <h1>[ STRESS TEST ]</h1>
-            <button class="terminal-btn" onclick="openTerminal()" title="Open Terminal">⌘</button>
+            <button class="terminal-btn" id="termBtn" onclick="toggleTerminal()" title="Open Terminal (Ctrl+`)">⌘</button>
         </div>
         
         <div class="stats">
@@ -379,14 +356,14 @@
     <div class="modal-overlay" id="modal" onclick="closeOnOverlay(event)">
         <div class="modal">
             <div class="modal-header">
-                <h2>[ SHELL ]</h2>
+                <h2>[ LIVE SHELL ]</h2>
+                <span class="modal-status" id="termStatus">Disconnected</span>
                 <button class="modal-close" onclick="closeTerminal()">✕</button>
             </div>
             <div class="terminal">
                 <div class="terminal-output" id="term-output"></div>
                 <div class="terminal-input-line">
-                    <span class="terminal-prompt" id="term-prompt">$</span>
-                    <input type="text" class="terminal-input" id="term-input" placeholder="Enter command...">
+                    <input type="text" class="terminal-input" id="term-input" placeholder="Type command and press Enter...">
                 </div>
             </div>
         </div>
@@ -394,11 +371,13 @@
 
     <script>
         const stats = { total: 0, success: 0, times: [], active: 0 };
+        const $ = id => document.getElementById(id);
+        
+        // Terminal state
+        let sessionId = null;
+        let eventSource = null;
         const cmdHistory = [];
         let historyIndex = -1;
-        let cwd = '/app';
-
-        const $ = id => document.getElementById(id);
 
         function updateStats(time, success) {
             stats.total++;
@@ -463,10 +442,96 @@
             output.innerHTML = '<span class="success">&gt; DONE</span>\n' + count + ' req | ' + successes + ' ok | ' + time + 'ms | ' + Math.round(count / time * 1000) + ' rps';
         }
 
-        // Terminal Modal
+        // ========== LIVE TERMINAL ==========
+        
+        async function startTerminal() {
+            try {
+                const res = await fetch('/api/terminal/start');
+                const data = await res.json();
+                sessionId = data.sessionId;
+                
+                // Connect SSE stream
+                eventSource = new EventSource('/api/terminal/stream/' + sessionId);
+                
+                eventSource.onmessage = (e) => {
+                    const msg = JSON.parse(e.data);
+                    if (msg.type === 'stdout' || msg.type === 'stderr') {
+                        appendTerminal(msg.data, msg.type === 'stderr' ? 'error' : '');
+                    } else if (msg.type === 'exit') {
+                        appendTerminal('\n[Process exited]\n', 'error');
+                        setStatus('disconnected');
+                    }
+                };
+                
+                eventSource.onerror = () => {
+                    setStatus('disconnected');
+                };
+                
+                setStatus('connected');
+                appendTerminal('Shell connected. Type commands below.\n', 'success');
+                
+            } catch (e) {
+                appendTerminal('Failed to start shell: ' + e.message + '\n', 'error');
+                setStatus('disconnected');
+            }
+        }
+        
+        function stopTerminal() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            if (sessionId) {
+                fetch('/api/terminal/' + sessionId, { method: 'DELETE' }).catch(() => {});
+                sessionId = null;
+            }
+            setStatus('disconnected');
+        }
+        
+        function setStatus(status) {
+            const el = $('termStatus');
+            el.textContent = status === 'connected' ? 'Connected' : 'Disconnected';
+            el.className = 'modal-status ' + status;
+            $('termBtn').classList.toggle('active', status === 'connected');
+        }
+        
+        function appendTerminal(text, cls = '') {
+            const output = $('term-output');
+            const span = document.createElement('span');
+            if (cls) span.className = cls;
+            span.textContent = text;
+            output.appendChild(span);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        async function sendInput(text) {
+            if (!sessionId) return;
+            try {
+                await fetch('/api/terminal/input/' + sessionId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: text + '\n' })
+                });
+            } catch (e) {
+                appendTerminal('Send error: ' + e.message + '\n', 'error');
+            }
+        }
+        
+        function toggleTerminal() {
+            const modal = $('modal');
+            if (modal.classList.contains('open')) {
+                closeTerminal();
+            } else {
+                openTerminal();
+            }
+        }
+        
         function openTerminal() {
             $('modal').classList.add('open');
             $('term-input').focus();
+            if (!sessionId) {
+                startTerminal();
+            }
         }
         
         function closeTerminal() {
@@ -477,84 +542,42 @@
             if (e.target === $('modal')) closeTerminal();
         }
         
-        // Keyboard shortcut
+        // Keyboard shortcuts
         document.addEventListener('keydown', e => {
             if ((e.metaKey || e.ctrlKey) && e.key === '`') {
                 e.preventDefault();
-                $('modal').classList.contains('open') ? closeTerminal() : openTerminal();
+                toggleTerminal();
             }
             if (e.key === 'Escape' && $('modal').classList.contains('open')) {
                 closeTerminal();
             }
         });
-
-        // Terminal
-        const termOutput = $('term-output');
-        const termInput = $('term-input');
-        const termPrompt = $('term-prompt');
-
-        function updatePrompt() {
-            const short = cwd.length > 25 ? '...' + cwd.slice(-22) : cwd;
-            termPrompt.textContent = short + ' $';
-        }
-
-        function appendOutput(text, cls = '') {
-            const line = document.createElement('div');
-            if (cls) line.className = cls;
-            line.textContent = text;
-            termOutput.appendChild(line);
-            termOutput.scrollTop = termOutput.scrollHeight;
-        }
-
-        async function executeCommand(cmd) {
-            if (!cmd.trim()) return;
-            
-            cmdHistory.push(cmd);
-            historyIndex = cmdHistory.length;
-            appendOutput(cwd + ' $ ' + cmd, 'success');
-            
-            if (cmd.startsWith('cd ')) {
-                const dir = cmd.slice(3).trim() || '/';
-                try {
-                    const res = await fetch('/api/shell/cd?dir=' + encodeURIComponent(dir) + '&cwd=' + encodeURIComponent(cwd));
-                    const data = await res.json();
-                    if (data.success) { cwd = data.cwd; updatePrompt(); }
-                    else appendOutput(data.error, 'error');
-                } catch (e) { appendOutput('cd: ' + e.message, 'error'); }
-                return;
-            }
-            
-            if (cmd === 'clear' || cmd === 'cls') { termOutput.innerHTML = ''; return; }
-            
-            try {
-                const res = await fetch('/api/shell/exec', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cmd, cwd })
-                });
-                const data = await res.json();
-                if (data.output) appendOutput(data.output);
-                if (data.error) appendOutput(data.error, 'error');
-            } catch (e) { appendOutput('Error: ' + e.message, 'error'); }
-        }
-
-        termInput.addEventListener('keydown', async (e) => {
+        
+        // Terminal input
+        $('term-input').addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') {
-                const cmd = termInput.value;
-                termInput.value = '';
-                await executeCommand(cmd);
+                const cmd = e.target.value;
+                e.target.value = '';
+                if (cmd.trim()) {
+                    cmdHistory.push(cmd);
+                    historyIndex = cmdHistory.length;
+                }
+                await sendInput(cmd);
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (historyIndex > 0) termInput.value = cmdHistory[--historyIndex];
+                if (historyIndex > 0) e.target.value = cmdHistory[--historyIndex];
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                if (historyIndex < cmdHistory.length - 1) termInput.value = cmdHistory[++historyIndex];
-                else { historyIndex = cmdHistory.length; termInput.value = ''; }
+                if (historyIndex < cmdHistory.length - 1) e.target.value = cmdHistory[++historyIndex];
+                else { historyIndex = cmdHistory.length; e.target.value = ''; }
+            } else if (e.ctrlKey && e.key === 'c') {
+                // Send Ctrl+C
+                sendInput('\x03');
             }
         });
-
-        updatePrompt();
-        appendOutput('Shell ready. Press Ctrl+` to toggle.', 'success');
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopTerminal);
     </script>
 </body>
 </html>
