@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const dns = require('dns');
 const fs = require('fs');
 const path = require('path');
@@ -19,22 +19,12 @@ app.use(express.static('public'));
 wss.on('connection', (ws) => {
     console.log('Terminal connected');
     
-    // Use sh without -i flag to avoid tty warning
     const shell = spawn('/bin/sh', [], {
         cwd: '/tmp',
-        env: { 
-            ...process.env, 
-            TERM: 'xterm-256color',
-            PS1: '$ ',
-            HOME: '/tmp',
-            PATH: process.env.PATH
-        },
+        env: { ...process.env, TERM: 'xterm-256color', PS1: '$ ', HOME: '/tmp', PATH: process.env.PATH },
         stdio: ['pipe', 'pipe', 'pipe']
     });
     
-    let buffer = '';
-    
-    // Send initial prompt
     setTimeout(() => {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'output', data: '$ ' }));
@@ -65,12 +55,7 @@ wss.on('connection', (ws) => {
             const parsed = JSON.parse(msg);
             if (parsed.type === 'input') {
                 shell.stdin.write(parsed.data);
-                // Echo newline and prompt after command
-                if (parsed.data === '\r' || parsed.data === '\n') {
-                    // Command was sent, prompt will come from output or we add it
-                }
             } else if (parsed.type === 'command') {
-                // Full command mode - write command + newline
                 shell.stdin.write(parsed.data + '\n');
             }
         } catch (e) {
@@ -78,12 +63,19 @@ wss.on('connection', (ws) => {
         }
     });
     
-    ws.on('close', () => {
-        console.log('Terminal disconnected');
-        shell.kill();
-    });
-    
+    ws.on('close', () => { console.log('Terminal disconnected'); shell.kill(); });
     ws.on('error', () => shell.kill());
+});
+
+// Direct exec endpoint for API testing
+app.post('/api/exec', (req, res) => {
+    const cmd = req.body.cmd || 'echo "no command"';
+    try {
+        const output = execSync(cmd, { encoding: 'utf8', timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
+        res.json({ output });
+    } catch (e) {
+        res.json({ error: e.message, output: e.stdout || '', stderr: e.stderr || '' });
+    }
 });
 
 // CPU Tests
@@ -171,7 +163,6 @@ app.get('/api/network/scan', (req, res) => {
 });
 
 app.get('/api/system/info', (req, res) => {
-    const { execSync } = require('child_process');
     try {
         res.json({
             hostname: execSync('hostname').toString().trim(),
@@ -197,7 +188,6 @@ app.get('/api/fs/write', (req, res) => {
 });
 
 app.get('/api/reverse/check', (req, res) => {
-    const { execSync } = require('child_process');
     try {
         res.json({
             nc: execSync('which nc 2>/dev/null || echo none').toString().trim(),
@@ -209,7 +199,7 @@ app.get('/api/reverse/check', (req, res) => {
 app.get('/api/load/concurrent', async (req, res) => {
     const count = parseInt(req.query.count) || 100;
     const start = Date.now();
-    const results = await Promise.all(Array.from({length: count}, (_, i) => 
+    await Promise.all(Array.from({length: count}, (_, i) => 
         Promise.resolve(crypto.createHash('sha256').update(String(i)).digest('hex'))
     ));
     res.json({ count, time: Date.now() - start });
